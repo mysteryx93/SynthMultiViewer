@@ -33,9 +33,8 @@ public static class ScriptPackages
                 continue;
             }
 
-            foreach (var directory in Directories(files, root))
+            foreach (var directory in Directories(files, root, token))
             {
-                token.ThrowIfCancellationRequested();
                 var folder = files.Path.GetFileName(directory);
                 if (folder.EndsWith(".dist-info", StringComparison.OrdinalIgnoreCase) ||
                     folder.EndsWith(".egg-info", StringComparison.OrdinalIgnoreCase))
@@ -44,15 +43,13 @@ public static class ScriptPackages
                 }
             }
 
-            foreach (var file in Files(files, root, "*.egg-info"))
+            foreach (var file in Files(files, root, "*.egg-info", token))
             {
-                token.ThrowIfCancellationRequested();
                 TryAddMetadata(file, names, files, token);
             }
 
-            foreach (var file in Files(files, root, "*.py"))
+            foreach (var file in Files(files, root, "*.py", token))
             {
-                token.ThrowIfCancellationRequested();
                 TryAddLoose(file, names, files, token);
             }
         }
@@ -84,15 +81,15 @@ public static class ScriptPackages
 
         var record = TryRead(files, files.Path.Combine(directory, "RECORD"));
         token.ThrowIfCancellationRequested();
-        if (NativeOnly(record))
+        var scan = ScanRecord(record, token);
+        if (scan.NativeOnly)
         {
             return;
         }
 
-        foreach (var name in ImportNames(directory, distribution, files, record))
+        foreach (var name in ImportNames(directory, distribution, files, scan.Modules, token))
         {
-            token.ThrowIfCancellationRequested();
-            names.Add(name);
+            TryAddName(names, name);
         }
     }
 
@@ -106,7 +103,7 @@ public static class ScriptPackages
             return;
         }
 
-        names.Add(ImportName(name));
+        TryAddName(names, ImportName(name));
     }
 
     private static void TryAddLoose(string path, SortedSet<string> names, IFileSystemService files,
@@ -119,7 +116,8 @@ public static class ScriptPackages
         }
 
         var name = files.GetPathWithoutExtension(file);
-        if (!name.HasText() || name.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase) ||
+        if (!ParameterNames.IsPythonImportName(name) ||
+            name.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase) ||
             names.Contains(name))
         {
             return;
@@ -127,7 +125,7 @@ public static class ScriptPackages
 
         token.ThrowIfCancellationRequested();
         var mention = TryReadPrefix(files, path, MentionLimit);
-        if (mention != null && mention.Contains("vapoursynth", StringComparison.OrdinalIgnoreCase))
+        if (mention != null && MentionsVapourSynthImport(mention))
         {
             names.Add(name);
         }
@@ -160,15 +158,25 @@ public static class ScriptPackages
     }
 
     private static IReadOnlyList<string> ImportNames(string directory, string distribution, IFileSystemService files,
-        string? record)
+        IReadOnlyList<string> recordModules, CancellationToken token)
     {
         var top = TryRead(files, files.Path.Combine(directory, "top_level.txt"));
+        token.ThrowIfCancellationRequested();
         if (top != null)
         {
             var fromTop = new List<string>();
-            foreach (var raw in top.Split('\n'))
+            var start = 0;
+            while (start < top.Length)
             {
-                var line = raw.Trim().TrimEnd('\r');
+                token.ThrowIfCancellationRequested();
+                var end = top.IndexOf('\n', start);
+                if (end < 0)
+                {
+                    end = top.Length;
+                }
+
+                var line = top.AsSpan(start, end - start).TrimEnd('\r').Trim().ToString();
+                start = end + 1;
                 if (!line.HasText() || line[0] == '#')
                 {
                     continue;
@@ -181,7 +189,8 @@ public static class ScriptPackages
                     module = module[..slash];
                 }
 
-                if (module.HasText() && !module.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase))
+                if (ParameterNames.IsPythonImportName(module) &&
+                    !module.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase))
                 {
                     fromTop.Add(module);
                 }
@@ -193,56 +202,85 @@ public static class ScriptPackages
             }
         }
 
-        var fromRecord = RecordModules(record);
-        if (fromRecord.Count > 0)
+        if (recordModules.Count > 0)
         {
-            return fromRecord;
+            return recordModules;
         }
 
         var fallback = ImportName(distribution);
-        return fallback.HasText() ? [fallback] : [];
+        return ParameterNames.IsPythonImportName(fallback) ? [fallback] : [];
     }
 
-    private static IReadOnlyList<string> RecordModules(string? record)
+    private readonly record struct RecordScan(bool NativeOnly, IReadOnlyList<string> Modules);
+
+    private static RecordScan ScanRecord(string? record, CancellationToken token)
     {
         if (record == null)
         {
-            return [];
+            return new(false, []);
         }
 
         var modules = new List<string>();
-        foreach (var raw in record.Split('\n'))
+        var hasFile = false;
+        var hasPython = false;
+        var start = 0;
+        while (start < record.Length)
         {
-            if (modules.Count >= 8)
+            token.ThrowIfCancellationRequested();
+            var end = record.IndexOf('\n', start);
+            if (end < 0)
             {
-                break;
+                end = record.Length;
             }
 
-            var path = raw.Split(',')[0].Trim().Replace('\\', '/');
-            if (path.Length == 0 || path.StartsWith("..", StringComparison.Ordinal) ||
-                !path.EndsWith(".py", StringComparison.OrdinalIgnoreCase) &&
-                !path.EndsWith(".pyi", StringComparison.OrdinalIgnoreCase))
+            var line = record.AsSpan(start, end - start);
+            if (line.Length > 0 && line[^1] == '\r')
+            {
+                line = line[..^1];
+            }
+
+            start = end + 1;
+            var comma = line.IndexOf(',');
+            var path = (comma < 0 ? line : line[..comma]).Trim();
+            if (path.Length == 0)
             {
                 continue;
             }
 
-            var slash = path.IndexOf('/');
-            var module = slash < 0 ? WithoutExtension(path) : path[..slash];
+            hasFile = true;
+            var python = path.EndsWith(".py", StringComparison.OrdinalIgnoreCase) ||
+                path.EndsWith(".pyi", StringComparison.OrdinalIgnoreCase);
+            if (python)
+            {
+                hasPython = true;
+            }
+
+            if (!python || modules.Count >= 8)
+            {
+                continue;
+            }
+
+            var normalized = path.ToString().Replace('\\', '/');
+            if (normalized.StartsWith("..", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var slash = normalized.IndexOf('/');
+            var module = slash < 0 ? WithoutExtension(normalized) : normalized[..slash];
             if (module.EndsWith(".dist-info", StringComparison.OrdinalIgnoreCase) ||
                 module.EndsWith(".egg-info", StringComparison.OrdinalIgnoreCase) ||
                 module.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase) ||
-                !module.HasText())
+                !ParameterNames.IsPythonImportName(module) ||
+                modules.Contains(module, StringComparer.Ordinal))
             {
                 continue;
             }
 
-            if (!modules.Contains(module, StringComparer.Ordinal))
-            {
-                modules.Add(module);
-            }
+            modules.Add(module);
         }
 
-        return modules;
+        return new(hasFile && !hasPython, modules);
     }
 
     private static string WithoutExtension(string path)
@@ -271,32 +309,72 @@ public static class ScriptPackages
         return ImportName(text[..end]);
     }
 
-    private static bool NativeOnly(string? record)
+    private static void TryAddName(SortedSet<string> names, string name)
     {
-        if (record == null)
+        if (ParameterNames.IsPythonImportName(name) &&
+            !name.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            names.Add(name);
         }
+    }
 
-        var hasFile = false;
-        foreach (var raw in record.Split('\n'))
+    private static readonly LexerOptions MentionLexer = new()
+    {
+        HashLineComments = true,
+        SingleQuotes = true,
+        TripleQuotes = true,
+        StringEscapes = true
+    };
+
+    private static bool MentionsVapourSynthImport(string text)
+    {
+        var code = BufferLexer.Mask(text, MentionLexer, trackLiterals: false).Code;
+        var i = 0;
+        var statement = true;
+        while (i < code.Length)
         {
-            var path = raw.Split(',')[0].Trim();
-            if (path.Length == 0)
+            var c = code[i];
+            if (c is ' ' or '\t' or '\f')
             {
+                i++;
                 continue;
             }
 
-            hasFile = true;
-            if (path.EndsWith(".py", StringComparison.OrdinalIgnoreCase) ||
-                path.EndsWith(".pyi", StringComparison.OrdinalIgnoreCase))
+            if (c is '\n' or '\r' or ';')
             {
-                return false;
+                statement = true;
+                i++;
+                continue;
             }
+
+            if (statement && (IsWord(code, i, "import") || IsWord(code, i, "from")))
+            {
+                i += code[i] == 'i' ? 6 : 4;
+                while (i < code.Length && code[i] is ' ' or '\t' or '\f')
+                {
+                    i++;
+                }
+
+                if (IsWord(code, i, "vapoursynth"))
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
+            statement = false;
+            i++;
         }
 
-        return hasFile;
+        return false;
     }
+
+    private static bool IsWord(string text, int i, string word) =>
+        i + word.Length <= text.Length &&
+        text.AsSpan(i, word.Length).Equals(word, StringComparison.Ordinal) &&
+        (i + word.Length == text.Length || !BufferLexer.IsIdentifier(text[i + word.Length])) &&
+        (i == 0 || !BufferLexer.IsIdentifier(text[i - 1]));
 
     private static bool DirectoryExists(IFileSystemService files, string path)
     {
@@ -314,35 +392,93 @@ public static class ScriptPackages
         }
     }
 
-    private static IReadOnlyList<string> Directories(IFileSystemService files, string root)
+    private static IEnumerable<string> Directories(IFileSystemService files, string root, CancellationToken token)
     {
+        IEnumerable<string> items;
         try
         {
-            return [..files.Directory.EnumerateDirectories(root)];
+            items = files.Directory.EnumerateDirectories(root);
         }
         catch (System.IO.IOException)
         {
-            return [];
+            yield break;
         }
         catch (UnauthorizedAccessException)
         {
-            return [];
+            yield break;
+        }
+
+        foreach (var item in Enumerate(items, token))
+        {
+            yield return item;
         }
     }
 
-    private static IReadOnlyList<string> Files(IFileSystemService files, string root, string pattern)
+    private static IEnumerable<string> Files(IFileSystemService files, string root, string pattern,
+        CancellationToken token)
     {
+        IEnumerable<string> items;
         try
         {
-            return [..files.Directory.EnumerateFiles(root, pattern)];
+            items = files.Directory.EnumerateFiles(root, pattern);
         }
         catch (System.IO.IOException)
         {
-            return [];
+            yield break;
         }
         catch (UnauthorizedAccessException)
         {
-            return [];
+            yield break;
+        }
+
+        foreach (var item in Enumerate(items, token))
+        {
+            yield return item;
+        }
+    }
+
+    private static IEnumerable<string> Enumerate(IEnumerable<string> items, CancellationToken token)
+    {
+        IEnumerator<string> enumerator;
+        try
+        {
+            enumerator = items.GetEnumerator();
+        }
+        catch (System.IO.IOException)
+        {
+            yield break;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            yield break;
+        }
+
+        using (enumerator)
+        {
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                bool next;
+                try
+                {
+                    next = enumerator.MoveNext();
+                }
+                catch (System.IO.IOException)
+                {
+                    yield break;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    yield break;
+                }
+
+                if (!next)
+                {
+                    yield break;
+                }
+
+                yield return enumerator.Current;
+            }
         }
     }
 

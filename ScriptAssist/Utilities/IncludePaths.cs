@@ -15,7 +15,8 @@ internal static class IncludePaths
         Candidates(specifier, fromPath, roots, false, paths);
 
     /// <summary>
-    /// Python module specifiers: <c>name.py</c> and <c>name/__init__.py</c> under the buffer and plugin roots.
+    /// Python module specifiers: <c>name.py</c>, <c>name.pyi</c>, <c>name/__init__.py</c>, and
+    /// <c>name/__init__.pyi</c> under the buffer and plugin roots.
     /// </summary>
     public static IEnumerable<string> PythonModule(string specifier, string? fromPath, IReadOnlyList<string> roots,
         IPath paths) =>
@@ -115,6 +116,7 @@ internal static class IncludePaths
         if (rest.Length == 0)
         {
             yield return paths.Combine(directory, "__init__.py");
+            yield return paths.Combine(directory, "__init__.pyi");
             yield break;
         }
 
@@ -133,6 +135,8 @@ internal static class IncludePaths
         }
 
         yield return path + ".py";
+        yield return path + ".pyi";
         yield return paths.Combine(path, "__init__.py");
+        yield return paths.Combine(path, "__init__.pyi");
     }
 }

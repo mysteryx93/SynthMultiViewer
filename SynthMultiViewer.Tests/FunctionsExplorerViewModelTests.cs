@@ -451,6 +451,30 @@ public class FunctionsExplorerViewModelTests
     }
 
     [Fact]
+    public async Task GoTo_EditDuringBrowse_KeepsCapturedVersion()
+    {
+        var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
+        var pending = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .Returns(pending.Task);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        var reload = model.ReloadAsync();
+        editor.Script = "x = 1\ndef Foo():\n    pass\n";
+        pending.SetResult(
+        [
+            new BrowseGroup("This file",
+                [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
+        ]);
+
+        await reload;
+
+        Assert.False(model.CanGoTo);
+        Assert.True(model.CanInsert);
+    }
+
+    [Fact]
     public async Task ReloadAsync_WhileLoaded_DisablesInsert()
     {
         var pending = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();

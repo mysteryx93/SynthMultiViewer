@@ -252,9 +252,13 @@ public class ScriptIncludesTests
         var paths = IncludePaths.PythonModule("havsfunc", fromPath, roots, files.Path).ToArray();
 
         Assert.Contains(files.Path.Combine("/scripts", "havsfunc.py"), paths);
+        Assert.Contains(files.Path.Combine("/scripts", "havsfunc.pyi"), paths);
         Assert.Contains(files.Path.Combine("/scripts", "havsfunc", "__init__.py"), paths);
+        Assert.Contains(files.Path.Combine("/scripts", "havsfunc", "__init__.pyi"), paths);
         Assert.Contains(files.Path.Combine("/plugins", "havsfunc.py"), paths);
+        Assert.Contains(files.Path.Combine("/plugins", "havsfunc.pyi"), paths);
         Assert.Contains(files.Path.Combine("/plugins", "havsfunc", "__init__.py"), paths);
+        Assert.Contains(files.Path.Combine("/plugins", "havsfunc", "__init__.pyi"), paths);
     }
 
     [Fact]
@@ -266,7 +270,9 @@ public class ScriptIncludesTests
         var paths = IncludePaths.PythonModule(".qtgmc", fromPath, ["/unused"], files.Path).ToArray();
 
         Assert.Equal(files.Path.Combine("/plugins", "havsfunc", "qtgmc.py"), paths[0]);
-        Assert.Equal(files.Path.Combine("/plugins", "havsfunc", "qtgmc", "__init__.py"), paths[1]);
+        Assert.Equal(files.Path.Combine("/plugins", "havsfunc", "qtgmc.pyi"), paths[1]);
+        Assert.Equal(files.Path.Combine("/plugins", "havsfunc", "qtgmc", "__init__.py"), paths[2]);
+        Assert.Equal(files.Path.Combine("/plugins", "havsfunc", "qtgmc", "__init__.pyi"), paths[3]);
         Assert.DoesNotContain(paths, path => path.Contains("unused", StringComparison.Ordinal));
     }
 
@@ -278,7 +284,11 @@ public class ScriptIncludesTests
 
         var paths = IncludePaths.PythonModule(".", fromPath, ["/unused"], files.Path).ToArray();
 
-        Assert.Equal([files.Path.Combine("/project", "pkg", "__init__.py")], paths);
+        Assert.Equal(
+            [
+                files.Path.Combine("/project", "pkg", "__init__.py"),
+                files.Path.Combine("/project", "pkg", "__init__.pyi")
+            ], paths);
     }
 
     [Fact]

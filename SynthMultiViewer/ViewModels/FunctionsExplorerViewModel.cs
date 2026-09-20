@@ -260,7 +260,6 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
             IndexCatalog();
             SelectedGroup = Groups.ElementAtOrDefault(0);
             _loaded = editor;
-            _browseVersion = editor.DocumentVersion;
             this.RaisePropertyChanged(nameof(CanInsert));
             this.RaisePropertyChanged(nameof(CanGoTo));
         }
@@ -284,21 +283,26 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
             return null;
         }
 
-        var roots = VapourSynthIncludeSource.SearchRoots();
-        var key = string.Join('\0', roots);
-        if (_packages != null && _packageKey == key)
+        var cachedKey = _packageKey;
+        var cached = _packages;
+        var extra = await Task.Run(() =>
         {
-            return _packages;
-        }
+            var found = VapourSynthIncludeSource.SearchRoots();
+            var current = string.Join('\0', found);
+            if (cached != null && cachedKey == current)
+            {
+                return (Key: current, Names: cached);
+            }
 
-        var extra = await Task.Run(() => ScriptPackages.List(roots, files, token), token);
+            return (Key: current, Names: ScriptPackages.List(found, files, token));
+        }, token);
         if (!token.IsCancellationRequested)
         {
-            _packageKey = key;
-            _packages = extra;
+            _packageKey = extra.Key;
+            _packages = extra.Names;
         }
 
-        return extra;
+        return extra.Names;
     }
 
     private void OnEditorChanged(IEditorViewModel? editor)
@@ -362,6 +366,7 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         _language = Editor.Kind.ToString();
         _text = Editor.Script;
         _path = Editor.FileName;
+        _browseVersion = Editor.DocumentVersion;
     }
 
     private void RebuildLists()

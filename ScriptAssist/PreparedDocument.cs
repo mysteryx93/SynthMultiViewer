@@ -13,7 +13,7 @@ internal sealed record PreparedDocument(
         ILanguage? language = null)
     {
         var masked = BufferLexer.Mask(text, lexer, token: token);
-        var quoted = BufferLexer.Mask(text, lexer, maskStrings: false, token: token);
+        var quoted = BufferLexer.Mask(text, lexer, maskStrings: false, token: token, trackLiterals: false);
         var statements = StatementScanner.Scan(masked.Code, token, language);
         return new(masked, quoted, statements, StatementScanner.JoinsFrom(masked.Code, statements));
     }

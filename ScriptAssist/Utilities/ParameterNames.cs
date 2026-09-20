@@ -706,6 +706,27 @@ internal static class ParameterNames
         "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield"
     };
 
+    /// <summary>
+    /// Returns whether <paramref name="name"/> can appear as a Python import identifier.
+    /// </summary>
+    internal static bool IsPythonImportName(string name)
+    {
+        if (name.Length == 0 || !BufferLexer.IsIdentifier(name[0]) || char.IsDigit(name[0]))
+        {
+            return false;
+        }
+
+        for (var i = 1; i < name.Length; i++)
+        {
+            if (!BufferLexer.IsIdentifier(name[i]))
+            {
+                return false;
+            }
+        }
+
+        return !PythonKeywords.Contains(name);
+    }
+
     private static string? EscapeKeyword(string? name) =>
         name != null && PythonKeywords.Contains(name) ? name + "_" : name;
 

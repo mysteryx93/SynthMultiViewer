@@ -2,11 +2,13 @@ VapourSynth Multi-Viewer Change Log
 
 v1.4
 - Greatly enhanced text editor with ScriptAssist
-- Horizontal scrollbar page-right now behaves as expected
-- Ask save confirmation when closing document
-- Redesigned scrollbars
-- Redesigned icons
+- Added Functions Explorer
 - Add start page when no document is open
+- Ask save confirmation when closing document
+- Redesigned application icon
+- Redesigned toolbar icons
+- Redesigned scrollbars
+- Fix horizontal scrollbar page-right
 - Reviewed keyboard shortcuts and improved Help documentation
 - Check for updates
 

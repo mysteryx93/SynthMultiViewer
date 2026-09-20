@@ -8,12 +8,13 @@ public static class VapourSynthImports
     /// <summary>
     /// One prefix scan: whether <paramref name="module"/> still needs a column-0 import,
     /// and where to write it after shebang, encoding, docstring, and existing imports.
+    /// A later non-module binding of the qualifier cannot be repaired and is not needed.
     /// </summary>
     public static ImportPlan Plan(string text, string module)
     {
         text ??= "";
-        var scan = Scan(text);
-        var needed = module.HasText() && !Present(scan, module);
+        var scan = Scan(text, module);
+        var needed = module.HasText() && !Present(scan, module) && !Occupied(scan, module);
         return new(needed, scan.Insert, needed ? Statement(text, scan.Insert, module) : "");
     }
 
@@ -21,25 +22,26 @@ public static class VapourSynthImports
     /// Returns whether a column-0 <c>import</c> currently binds <paramref name="module"/>.
     /// <c>from module import</c> does not count; that does not bind the module name.
     /// </summary>
-    public static bool Contains(string text, string module) =>
-        module.HasText() && Present(Scan(text ?? ""), module);
+    internal static bool Contains(string text, string module) =>
+        module.HasText() && Present(Scan(text ?? "", module), module);
 
     /// <summary>
     /// Offset after the last complete column-0 header <c>import</c> / <c>from</c> statement,
     /// shebang, encoding cookie, or module docstring, or 0.
     /// </summary>
-    public static int InsertionOffset(string text) => Scan(text ?? "").Insert;
+    internal static int InsertionOffset(string text) => Scan(text ?? "", "").Insert;
 
     /// <summary>
     /// An <c>import module</c> statement, with a leading newline when <paramref name="offset"/>
-    /// does not follow a line break.
+    /// does not follow a line break. Uses the document's newline sequence.
     /// </summary>
-    public static string Statement(string text, int offset, string module)
+    internal static string Statement(string text, int offset, string module)
     {
-        var line = "import " + module + "\n";
-        if (offset > 0 && text[offset - 1] != '\n')
+        var nl = Newline(text);
+        var line = "import " + module + nl;
+        if (offset > 0 && text[offset - 1] is not ('\n' or '\r'))
         {
-            return "\n" + line;
+            return nl + line;
         }
 
         return line;
@@ -47,25 +49,35 @@ public static class VapourSynthImports
 
     private static bool Present(ScanResult scan, string module)
     {
-        if (scan.Names.TryGetValue(module, out var path) && path != null && RefersTo(path, module))
-        {
-            return true;
-        }
-
-        return module.Contains('.', StringComparison.Ordinal) && scan.Paths.Contains(module) &&
-            (!scan.Names.TryGetValue(module, out var bound) || bound != null);
+        var root = Root(module);
+        return scan.Names.TryGetValue(root, out var path) && path != null && RefersTo(path, module);
     }
+
+    private static bool Occupied(ScanResult scan, string module) =>
+        scan.Names.TryGetValue(Root(module), out var path) && path == null;
 
     private static bool RefersTo(string path, string module) =>
         path.Equals(module, StringComparison.Ordinal) ||
         path.StartsWith(module + ".", StringComparison.Ordinal);
 
-    private static ScanResult Scan(string text)
+    private static string Root(string module)
+    {
+        var dot = module.IndexOf('.');
+        return dot < 0 ? module : module[..dot];
+    }
+
+    private static ScanResult Scan(string text, string module)
     {
         var names = new Dictionary<string, string?>(StringComparer.Ordinal);
-        var paths = new HashSet<string>(StringComparer.Ordinal);
+        var tracked = new HashSet<string>(StringComparer.Ordinal);
+        if (module.HasText())
+        {
+            tracked.Add(Root(module));
+        }
+
         var insert = 0;
         var header = true;
+        var lineTop = false;
         var i = 0;
         var line = 1;
         while (i < text.Length)
@@ -80,15 +92,26 @@ public static class VapourSynthImports
             {
                 i = AfterNewline(text, i);
                 line++;
+                lineTop = false;
                 continue;
             }
 
             var col0 = IsColumn0(text, i);
+            if (col0)
+            {
+                lineTop = true;
+            }
+
             var start = i;
             var statement = ReadStatement(text, i);
             i = statement.Next;
 
-            if (header && col0)
+            if (!lineTop)
+            {
+                continue;
+            }
+
+            if (header)
             {
                 if (IsComment(text, start))
                 {
@@ -103,6 +126,11 @@ public static class VapourSynthImports
 
                 if (IsString(text, start))
                 {
+                    if (statement.Unclosed)
+                    {
+                        break;
+                    }
+
                     insert = statement.LineEnd;
                     continue;
                 }
@@ -118,7 +146,7 @@ public static class VapourSynthImports
                     if (IsKeyword(text, start, statement.End, "import"))
                     {
                         ApplyImport(text, AfterKeyword(text, start, statement.End, "import"), statement.End,
-                            names, paths);
+                            names, tracked);
                     }
 
                     insert = statement.LineEnd;
@@ -128,19 +156,16 @@ public static class VapourSynthImports
                 header = false;
             }
 
-            if (!header && col0)
+            if (tracked.Count > 0)
             {
-                ApplyAssignment(text, start, statement.End, names);
+                ApplyShadow(text, start, statement.End, names, tracked);
             }
         }
 
-        return new(insert, names, paths);
+        return new(insert, names);
     }
 
-    private readonly record struct ScanResult(
-        int Insert,
-        Dictionary<string, string?> Names,
-        HashSet<string> Paths);
+    private readonly record struct ScanResult(int Insert, Dictionary<string, string?> Names);
 
     private readonly record struct StatementRead(int End, int Next, int LineEnd, bool Unclosed);
 
@@ -150,6 +175,7 @@ public static class VapourSynthImports
         var quote = '\0';
         var triple = false;
         var comment = false;
+        var commentAt = -1;
         for (var i = start; i < text.Length; i++)
         {
             var c = text[i];
@@ -157,7 +183,8 @@ public static class VapourSynthImports
             {
                 if (c is '\n' or '\r')
                 {
-                    return new(i, AfterNewline(text, i), AfterNewline(text, i), false);
+                    var next = AfterNewline(text, i);
+                    return new(commentAt, next, next, false);
                 }
 
                 continue;
@@ -194,6 +221,7 @@ public static class VapourSynthImports
             if (c == '#')
             {
                 comment = true;
+                commentAt = i;
                 continue;
             }
 
@@ -241,11 +269,12 @@ public static class VapourSynthImports
             }
         }
 
-        return new(text.Length, text.Length, text.Length, depth > 0 || quote != '\0');
+        var end = commentAt >= 0 ? commentAt : text.Length;
+        return new(end, text.Length, text.Length, depth > 0 || quote != '\0');
     }
 
     private static void ApplyImport(string text, int start, int end, Dictionary<string, string?> names,
-        HashSet<string> paths)
+        HashSet<string> tracked)
     {
         foreach (var part in SplitList(text, start, end))
         {
@@ -263,7 +292,6 @@ public static class VapourSynthImports
                 continue;
             }
 
-            paths.Add(imported);
             if (!aliased && imported.Contains('.', StringComparison.Ordinal))
             {
                 alias = imported[..imported.IndexOf('.')];
@@ -272,38 +300,124 @@ public static class VapourSynthImports
             if (alias.Length > 0)
             {
                 names[alias] = imported;
+                tracked.Add(alias);
             }
         }
     }
 
-    private static void ApplyAssignment(string text, int start, int end, Dictionary<string, string?> names)
+    private static void ApplyShadow(string text, int start, int end, Dictionary<string, string?> names,
+        HashSet<string> tracked)
     {
-        var i = start;
-        SkipHorizontal(text, ref i);
-        if (!TryIdent(text, ref i, end, out var name))
+        SkipHorizontal(text, ref start);
+        if (start >= end)
         {
             return;
         }
 
-        SkipHorizontal(text, ref i);
-        if (i < end && text[i] == ':')
+        if (IsKeyword(text, start, end, "async"))
         {
-            i++;
-            while (i < end && text[i] != '=')
-            {
-                if (text[i] is '"' or '\'')
-                {
-                    SkipString(text, ref i, end);
-                    continue;
-                }
-
-                i++;
-            }
+            start = AfterKeyword(text, start, end, "async");
+            SkipHorizontal(text, ref start);
         }
 
-        if (i < end && text[i] == '=' && (i + 1 >= end || text[i + 1] != '='))
+        if (IsKeyword(text, start, end, "def") || IsKeyword(text, start, end, "class"))
         {
-            names[name] = null;
+            var word = IsKeyword(text, start, end, "def") ? "def" : "class";
+            var i = AfterKeyword(text, start, end, word);
+            var at = i;
+            if (VapourSynthBindingTargets.TryIdentSpan(text, ref i, end, out var length))
+            {
+                Mark(names, tracked, text, at, length);
+            }
+
+            return;
+        }
+
+        if (IsKeyword(text, start, end, "del"))
+        {
+            MarkSpans(names, tracked, text, AfterKeyword(text, start, end, "del"), end, null);
+            return;
+        }
+
+        if (IsKeyword(text, start, end, "for"))
+        {
+            MarkSpans(names, tracked, text, AfterKeyword(text, start, end, "for"), end, "in");
+            return;
+        }
+
+        if (IsKeyword(text, start, end, "with"))
+        {
+            MarkWith(names, tracked, text, start, end);
+            return;
+        }
+
+        var eq = ParameterNames.TopLevelKeywordEquals(text, start, end);
+        if (eq >= 0)
+        {
+            MarkSpans(names, tracked, text, start, eq, null);
+        }
+    }
+
+    private static void MarkWith(Dictionary<string, string?> names, HashSet<string> tracked, string text,
+        int start, int end)
+    {
+        var i = AfterKeyword(text, start, end, "with");
+        while (i < end)
+        {
+            SkipHorizontal(text, ref i);
+            if (i >= end || text[i] == ':')
+            {
+                return;
+            }
+
+            if (IsKeyword(text, i, end, "as"))
+            {
+                i = AfterKeyword(text, i, end, "as");
+                var at = i;
+                if (VapourSynthBindingTargets.TryIdentSpan(text, ref i, end, out var length))
+                {
+                    Mark(names, tracked, text, at, length);
+                }
+
+                continue;
+            }
+
+            if (text[i] is '"' or '\'')
+            {
+                VapourSynthBindingTargets.SkipString(text, ref i, end);
+                continue;
+            }
+
+            if (text[i] is '(' or '[' or '{')
+            {
+                var close = text[i] == '(' ? ')' : text[i] == '[' ? ']' : '}';
+                i = VapourSynthBindingTargets.SkipBalanced(text, i, end, text[i], close);
+                continue;
+            }
+
+            i++;
+        }
+    }
+
+    private static void MarkSpans(Dictionary<string, string?> names, HashSet<string> tracked, string text,
+        int start, int end, string? stop)
+    {
+        foreach (var (at, length) in VapourSynthBindingTargets.Spans(text, start, end, stop))
+        {
+            Mark(names, tracked, text, at, length);
+        }
+    }
+
+    private static void Mark(Dictionary<string, string?> names, HashSet<string> tracked, string text, int start,
+        int length)
+    {
+        foreach (var name in tracked)
+        {
+            if (VapourSynthBindingTargets.SpanEquals(text, start, length, name))
+            {
+                names[name] = null;
+                return;
+            }
         }
     }
 
@@ -314,6 +428,16 @@ public static class VapourSynthImports
         for (var i = start; i < end; i++)
         {
             var c = text[i];
+            if (c == '#')
+            {
+                if (from < i)
+                {
+                    yield return text[from..i];
+                }
+
+                yield break;
+            }
+
             if (c is '"' or '\'')
             {
                 SkipString(text, ref i, end);
@@ -514,22 +638,21 @@ public static class VapourSynthImports
         }
     }
 
-    private static bool TryIdent(string text, ref int i, int end, out string name)
+    private static string Newline(string text)
     {
-        var start = i;
-        if (i >= end || !BufferLexer.IsIdentifier(text[i]) || char.IsDigit(text[i]))
+        for (var i = 0; i < text.Length; i++)
         {
-            name = "";
-            return false;
+            if (text[i] == '\r')
+            {
+                return i + 1 < text.Length && text[i + 1] == '\n' ? "\r\n" : "\r";
+            }
+
+            if (text[i] == '\n')
+            {
+                return "\n";
+            }
         }
 
-        i++;
-        while (i < end && BufferLexer.IsIdentifier(text[i]))
-        {
-            i++;
-        }
-
-        name = text[start..i];
-        return true;
+        return Environment.NewLine;
     }
 }

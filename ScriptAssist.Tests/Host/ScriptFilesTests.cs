@@ -43,4 +43,19 @@ public class ScriptFilesTests
 
         Assert.Null(file);
     }
+
+    [Fact]
+    public void PythonModule_StubOnly_ReadsPyi()
+    {
+        var files = new FakeFileSystemService(new Dictionary<string, MockFileData>
+        {
+            ["/site-packages/helper.pyi"] = "def Foo():\n    ...\n"
+        });
+
+        var file = ScriptFiles.PythonModule("helper", null, ["/site-packages"], files);
+
+        Assert.NotNull(file);
+        Assert.Contains("def Foo(", file.Value.Text, StringComparison.Ordinal);
+        Assert.EndsWith("helper.pyi", file.Value.Path, StringComparison.Ordinal);
+    }
 }

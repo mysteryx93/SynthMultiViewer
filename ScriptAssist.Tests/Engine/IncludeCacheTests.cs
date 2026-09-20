@@ -5,17 +5,17 @@ namespace HanumanInstitute.ScriptAssist.Tests.Engine;
 public class IncludeCacheTests
 {
     [Fact]
-    public void IncludeCache_ExceedsEntryLimit_EvictsOldest()
+    public void IncludeCache_ManySmallEntries_AreRetained()
     {
         var cache = new IncludeCache();
         var session = new IncludeSession(cache);
-        for (var i = 0; i < 80; i++)
+        for (var i = 0; i < 100; i++)
         {
             session.SetEntry("/plugins/f" + i + ".py", new IncludeEntry([], []));
         }
 
-        Assert.False(cache.TryEntry("/plugins/f0.py", out _));
-        Assert.True(cache.TryEntry("/plugins/f79.py", out _));
+        Assert.True(cache.TryEntry("/plugins/f0.py", out _));
+        Assert.True(cache.TryEntry("/plugins/f99.py", out _));
     }
 
     [Fact]
@@ -24,15 +24,16 @@ public class IncludeCacheTests
         var cache = new IncludeCache();
         PinDocuments(cache, 8);
         var session = new IncludeSession(cache);
-        for (var i = 0; i < 80; i++)
+        var huge = new IncludeEntry([new Symbol("F", [new string('x', 1_200_000)])], []);
+        for (var i = 0; i < 8; i++)
         {
-            session.SetEntry("/plugins/f" + i + ".py", new IncludeEntry([], []));
+            session.SetEntry("/plugins/f" + i + ".py", huge);
         }
 
         Assert.True(cache.TryEntry("/plugins/d0.py", out _));
         Assert.True(cache.TryEntry("/plugins/d7.py", out _));
         Assert.False(cache.TryEntry("/plugins/f0.py", out _));
-        Assert.True(cache.TryEntry("/plugins/f79.py", out _));
+        Assert.True(cache.TryEntry("/plugins/f7.py", out _));
     }
 
     [Fact]
@@ -40,16 +41,12 @@ public class IncludeCacheTests
     {
         var cache = new IncludeCache();
         PinDocuments(cache, 8);
+        var huge = new IncludeEntry([new Symbol("F", [new string('x', 1_200_000)])], []);
         var session = new IncludeSession(cache);
-        for (var i = 0; i < 80; i++)
-        {
-            session.SetEntry("/plugins/f" + i + ".py", new IncludeEntry([], []));
-        }
-
         cache.Release("/doc0.vpy");
-        for (var i = 0; i < 80; i++)
+        for (var i = 0; i < 8; i++)
         {
-            session.SetEntry("/plugins/g" + i + ".py", new IncludeEntry([], []));
+            session.SetEntry("/plugins/g" + i + ".py", huge);
         }
 
         Assert.False(cache.TryEntry("/plugins/d0.py", out _));

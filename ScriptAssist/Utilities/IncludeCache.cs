@@ -2,16 +2,16 @@ namespace HanumanInstitute.ScriptAssist;
 
 /// <summary>
 /// Remembers include resolutions and parsed exports until the next refresh,
-/// with LRU bounds on parsed files and path lookups.
+/// with LRU bounds on path lookups and a byte cap on unpinned parsed files.
 /// Lookups, publication, clearing, and version checks are synchronized; callers
 /// keep file reading and parsing outside the lock.
 /// </summary>
 internal sealed class IncludeCache
 {
-    private const int EntryLimit = 64;
     private const int PathLimit = 256;
     private const int WorkingSetLimit = 8;
     private const long EntryByteLimit = 4 * 1024 * 1024;
+    private const long PinByteLimit = 8 * 1024 * 1024;
     internal const int ImportDepthLimit = 128;
     internal const int ImportWorkLimit = 256;
     private readonly Lock _gate = new();
@@ -135,8 +135,14 @@ internal sealed class IncludeCache
             }
 
             var copy = new IncludeEntry(Copy(entry.Members), Copy(entry.Dependencies));
+            var bytes = EntryBytes(copy);
+            if (bytes > EntryByteLimit)
+            {
+                return;
+            }
+
             _entries[path] = copy;
-            _entryBytes[path] = EntryBytes(copy);
+            _entryBytes[path] = bytes;
             TouchEntry(path);
             EvictEntries();
         }
@@ -158,22 +164,30 @@ internal sealed class IncludeCache
             }
 
             var key = documentPath ?? "";
-            _workingSets[key] = new WorkingSet(
-                new HashSet<string>(entries.Keys, StringComparer.Ordinal),
-                [..paths.Keys]);
+            var stored = new HashSet<string>(StringComparer.Ordinal);
+            var pinned = 0L;
+            foreach (var pair in entries)
+            {
+                var copy = new IncludeEntry(Copy(pair.Value.Members), Copy(pair.Value.Dependencies));
+                var bytes = EntryBytes(copy);
+                if (bytes > EntryByteLimit || pinned + bytes > PinByteLimit)
+                {
+                    continue;
+                }
+
+                pinned += bytes;
+                stored.Add(pair.Key);
+                _entries[pair.Key] = copy;
+                _entryBytes[pair.Key] = bytes;
+            }
+
+            _workingSets[key] = new WorkingSet(stored, [..paths.Keys]);
             Touch(key, _workingOrder);
             while (_workingSets.Count > WorkingSetLimit && _workingOrder.Last != null)
             {
                 var last = _workingOrder.Last.Value;
                 _workingOrder.RemoveLast();
                 _workingSets.Remove(last);
-            }
-
-            foreach (var pair in entries)
-            {
-                var copy = new IncludeEntry(Copy(pair.Value.Members), Copy(pair.Value.Dependencies));
-                _entries[pair.Key] = copy;
-                _entryBytes[pair.Key] = EntryBytes(copy);
             }
 
             foreach (var pair in paths)
@@ -338,7 +352,7 @@ internal sealed class IncludeCache
 
     private void EvictEntries()
     {
-        while (_entryOrder.Last != null && (_entries.Count > EntryLimit || UnpinnedBytes() > EntryByteLimit))
+        while (_entryOrder.Last != null && UnpinnedBytes() > EntryByteLimit)
         {
             var path = _entryOrder.Last.Value;
             _entryOrder.RemoveLast();

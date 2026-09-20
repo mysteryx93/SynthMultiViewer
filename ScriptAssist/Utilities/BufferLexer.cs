@@ -17,7 +17,8 @@ internal static partial class BufferLexer
     /// <summary>
     /// Blanks comments and optionally strings while preserving original document offsets.
     /// </summary>
-    public static LexedBuffer Mask(string text, LexerOptions options, bool maskStrings = true, CancellationToken token = default)
+    public static LexedBuffer Mask(string text, LexerOptions options, bool maskStrings = true,
+        CancellationToken token = default, bool trackLiterals = true)
     {
         if (options.BackslashLineContinuations)
         {
@@ -29,7 +30,7 @@ internal static partial class BufferLexer
         var triple = false;
         var line = false;
         var block = new Stack<char>();
-        var literal = new BitArray(text.Length + 1);
+        var literal = trackLiterals ? new BitArray(text.Length + 1) : null;
 
         var i = 0;
         for (; i < text.Length; i++)
@@ -160,8 +161,13 @@ internal static partial class BufferLexer
             }
         }
 
-        literal[text.Length] = quote != '\0' || line || block.Count > 0;
-        return new(new(code), literal[text.Length]) { LiteralAt = literal };
+        var inLiteral = quote != '\0' || line || block.Count > 0;
+        if (literal != null)
+        {
+            literal[text.Length] = inLiteral;
+        }
+
+        return new(new(code), inLiteral) { LiteralAt = literal };
 
         void Consume()
         {
@@ -171,7 +177,7 @@ internal static partial class BufferLexer
 
         void Mark(int index)
         {
-            if ((uint)index < (uint)literal.Length)
+            if (literal != null && (uint)index < (uint)literal.Length)
             {
                 literal[index] = quote != '\0' || line || block.Count > 0;
             }

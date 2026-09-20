@@ -389,7 +389,8 @@ public sealed class LanguageService : ILanguageService
     }
 
     private static long SnapshotBytes(string text, DocumentSnapshot snapshot) =>
-        (long)text.Length * sizeof(char) * 3 + snapshot.Joins.Length + snapshot.Bindings.RetainedBytes();
+        (long)text.Length * sizeof(char) * 3 + snapshot.Joins.Length + snapshot.Bindings.RetainedBytes() +
+        snapshot.Masked.LiteralBytes + snapshot.Quoted.LiteralBytes;
 
     private sealed class InflightBuild(int generation, CancellationTokenSource cts)
     {

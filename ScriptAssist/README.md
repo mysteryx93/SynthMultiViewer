@@ -40,12 +40,12 @@ Reply reply = await service.GetAsync(text, caret, cancellationToken, documentPat
 `Reply` contains completion items, call insight, and hover text. Discard it if the document, caret, language, or path changed while awaiting it. `Create` returns null while `IsEnabled` is false.
 
 ```csharp
-var extra = ScriptPackages.List(roots, files, cancellationToken);
+var extra = await Task.Run(() => ScriptPackages.List(roots, files, cancellationToken), cancellationToken);
 IReadOnlyList<BrowseGroup> groups = await factory.BrowseAsync(
     ScriptLanguageFactory.VapourSynth, text, cancellationToken, documentPath, extra);
 ```
 
-`BrowseAsync` uses the same catalog and snapshot as `GetAsync`. It still runs while `IsEnabled` is false. Pass `extraPackages` from `ScriptPackages.List` so unimported VapourSynth packages can appear in the explorer; they do not appear in completion until the buffer imports them.
+`BrowseAsync` uses the same catalog and snapshot as `GetAsync`. It still runs while `IsEnabled` is false. Pass `extraPackages` from `ScriptPackages.List` so unimported VapourSynth packages can appear in the explorer; they do not appear in completion until the buffer imports them. `ScriptPackages.List` walks plugin and site-package roots on disk; UI hosts should run it off-thread and cache the result by those roots.
 
 ## Catalog lifecycle
 
@@ -78,7 +78,7 @@ var factory = new ScriptLanguageFactory(
     vapoursynthNative, avisynthNative, avisynthAutoload, pythonIncludes, avisynthIncludes);
 ```
 
-`ScriptFiles` uses absolute paths directly; otherwise it tries paths beside `fromPath`, then the supplied directories, through `IFileSystemService`. Missing or unreadable candidates are skipped so later paths are tried. AviSynth uses the supplied filename, including its extension; Python tries `name.py` and `name/__init__.py`. Leading-dot Python imports resolve relative to the importing file. Include plugin or site-packages directories in the host's roots as needed.
+`ScriptFiles` uses absolute paths directly; otherwise it tries paths beside `fromPath`, then the supplied directories, through `IFileSystemService`. Missing or unreadable candidates are skipped so later paths are tried. AviSynth uses the supplied filename, including its extension; Python tries `name.py`, `name.pyi`, `name/__init__.py`, and `name/__init__.pyi`. Leading-dot Python imports resolve relative to the importing file. Include plugin or site-packages directories in the host's roots as needed.
 
 Pass the open document's path for sibling imports. Unsaved buffers can still use supplied search roots. Autoload AviSynth scripts are merged inside `AviSynthSymbolSource` via `AviSynthFunctions.Parse` and `UnionByName`.
 

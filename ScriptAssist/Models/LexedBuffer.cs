@@ -21,4 +21,6 @@ internal sealed record LexedBuffer(string Code, bool InLiteral)
     }
 
     internal BitArray? LiteralAt { get; init; }
+
+    internal int LiteralBytes => LiteralAt == null ? 0 : (LiteralAt.Length + 7) / 8;
 }

@@ -269,7 +269,7 @@ public class BrowseTests
     {
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
         var extra = new List<string>();
-        for (var i = 0; i < 50; i++)
+        for (var i = 0; i < 100; i++)
         {
             var name = "pkg" + i;
             files[name] = "def F" + i + "():\n    pass\n";
@@ -296,7 +296,7 @@ public class BrowseTests
         await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, "import vapoursynth as vs\n",
             CancellationToken.None, extraPackages: extra);
 
-        Assert.Equal(50, first);
+        Assert.Equal(100, first);
         Assert.Equal(first, reads);
     }
 
@@ -333,5 +333,20 @@ public class BrowseTests
         Assert.DoesNotContain(groups, g => g.Name == "This file");
         var helper = Assert.Single(groups, g => g.Name == "helper");
         Assert.Contains(helper.Functions, f => f.Name == "Filter");
+    }
+
+    [Fact]
+    public async Task BrowseAsync_AssignedQualifier_OmitsInstalledPackage()
+    {
+        const string text = "helper = 1\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "def Foo():\n    pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None,
+            extraPackages: ["helper"]);
+
+        Assert.DoesNotContain(groups, g => g.Name == "helper");
     }
 }

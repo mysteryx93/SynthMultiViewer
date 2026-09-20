@@ -180,4 +180,37 @@ public class ScriptPackagesTests
         Assert.Throws<OperationCanceledException>(act);
         Assert.Equal(1, reads);
     }
+
+    [Fact]
+    public void List_CommentOnlyMention_Skipped()
+    {
+        var files = new FakeFileSystemService()
+            .Add("/site-packages/custom.py", "# does not import vapoursynth\n");
+
+        var names = ScriptPackages.List(["/site-packages"], files);
+
+        Assert.DoesNotContain("custom", names);
+    }
+
+    [Fact]
+    public void List_InvalidIdentifier_Skipped()
+    {
+        var files = new FakeFileSystemService()
+            .Add("/site-packages/bad-name.py", "import vapoursynth as vs\n");
+
+        var names = ScriptPackages.List(["/site-packages"], files);
+
+        Assert.DoesNotContain("bad-name", names);
+    }
+
+    [Fact]
+    public void List_KeywordName_Skipped()
+    {
+        var files = new FakeFileSystemService()
+            .Add("/site-packages/class.py", "import vapoursynth as vs\n");
+
+        var names = ScriptPackages.List(["/site-packages"], files);
+
+        Assert.DoesNotContain("class", names);
+    }
 }

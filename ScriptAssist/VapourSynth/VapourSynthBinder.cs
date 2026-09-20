@@ -892,87 +892,8 @@ internal static class VapourSynthBinder
         return innerStart < innerEnd;
     }
 
-    private static IEnumerable<string> BindingTargets(string quoted, int start, int end, string? stop)
-    {
-        var i = start;
-        while (i < end)
-        {
-            SkipWs(quoted, ref i, end);
-            if (i >= end || stop != null && Keyword(quoted, i, end, stop))
-            {
-                yield break;
-            }
-
-            if (quoted[i] is ',' or '*')
-            {
-                i++;
-                continue;
-            }
-
-            if (quoted[i] is '"' or '\'')
-            {
-                SkipString(quoted, ref i, end);
-                continue;
-            }
-
-            if (quoted[i] is '(' or '[')
-            {
-                var close = quoted[i] == '(' ? ')' : ']';
-                var innerEnd = SkipBalanced(quoted, i, end, quoted[i], close);
-                foreach (var inner in BindingTargets(quoted, i + 1, innerEnd - (innerEnd > i ? 1 : 0), null))
-                {
-                    yield return inner;
-                }
-
-                i = innerEnd;
-                continue;
-            }
-
-            if (!TryIdent(quoted, ref i, end, out var name))
-            {
-                i++;
-                continue;
-            }
-
-            SkipWs(quoted, ref i, end);
-            if (i < end && quoted[i] is '.' or '[' or '(')
-            {
-                SkipTrailers(quoted, ref i, end);
-                continue;
-            }
-
-            yield return name;
-        }
-    }
-
-    private static void SkipTrailers(string quoted, ref int i, int end)
-    {
-        while (i < end)
-        {
-            SkipWs(quoted, ref i, end);
-            if (i >= end)
-            {
-                return;
-            }
-
-            if (quoted[i] == '.')
-            {
-                i++;
-                SkipWs(quoted, ref i, end);
-                TryIdent(quoted, ref i, end, out _);
-                continue;
-            }
-
-            if (quoted[i] is '[' or '(')
-            {
-                var close = quoted[i] == '[' ? ']' : ')';
-                i = SkipBalanced(quoted, i, end, quoted[i], close);
-                continue;
-            }
-
-            return;
-        }
-    }
+    private static IEnumerable<string> BindingTargets(string quoted, int start, int end, string? stop) =>
+        VapourSynthBindingTargets.Names(quoted, start, end, stop);
 
     private static int SkipBalanced(string quoted, int start, int end, char open, char close)
     {

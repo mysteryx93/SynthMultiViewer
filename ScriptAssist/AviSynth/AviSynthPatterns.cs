@@ -31,5 +31,5 @@ internal static partial class AviSynthPatterns
     /// </summary>
     public static string Clean(string text, LexerOptions lexer, bool maskStrings = true,
         CancellationToken token = default) =>
-        BufferLexer.Mask(text, lexer, maskStrings, token: token).Code;
+        BufferLexer.Mask(text, lexer, maskStrings, token: token, trackLiterals: false).Code;
 }

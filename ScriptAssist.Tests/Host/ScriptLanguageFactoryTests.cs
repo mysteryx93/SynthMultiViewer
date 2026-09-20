@@ -104,6 +104,25 @@ public class ScriptLanguageFactoryTests
     }
 
     [Fact]
+    public async Task Refresh_ForcedFailure_KeepsLastCatalog()
+    {
+        var source = new Mock<ISymbolSource>();
+        source.SetupSequence(s => s.Enumerate())
+            .Returns([new Symbol("core.std.Crop", ["clip:vnode"])])
+            .Throws<InvalidOperationException>();
+        var cache = new CatalogCache(source.Object);
+        cache.Refresh("path1");
+
+        var first = await cache.GetAsync(CancellationToken.None);
+        cache.Refresh("path1", true);
+        var second = await cache.GetAsync(CancellationToken.None);
+
+        Assert.Equal("core.std.Crop", Assert.Single(first).Name);
+        Assert.Equal("core.std.Crop", Assert.Single(second).Name);
+        source.Verify(s => s.Enumerate(), Times.Exactly(2));
+    }
+
+    [Fact]
     public async Task Refresh_ReusedCatalogList_SnapshotsNewSymbols()
     {
         const string text = "core.std.";

@@ -361,10 +361,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var pair in bindings.Names)
         {
-            if (VapourSynthTypes.ScriptOf(pair.Value) != null)
-            {
-                seen.Add(pair.Key);
-            }
+            seen.Add(pair.Key);
         }
 
         var session = new IncludeSession(Includes);

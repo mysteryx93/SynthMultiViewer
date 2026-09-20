@@ -3,6 +3,7 @@
         xmlns:h="using:HanumanInstitute.SynthMultiViewer.Helpers"
         xmlns:sa="using:HanumanInstitute.ScriptAssist"
         xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
+        xmlns:converters="using:Avalonia.Data.Converters"
         x:Class="HanumanInstitute.SynthMultiViewer.Views.FunctionsExplorerView"
         x:DataType="vm:FunctionsExplorerViewModel"
         Title="{Binding DisplayName}"
@@ -27,6 +28,10 @@
             <Button Content="Close" Command="{Binding Close}" />
         </StackPanel>
         <DockPanel>
+            <TextBlock DockPanel.Dock="Top" Text="{Binding Error}" TextWrapping="Wrap"
+                       Margin="0,0,0,6"
+                       Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
+                       IsVisible="{Binding Error, Converter={x:Static converters:ObjectConverters.IsNotNull}}" />
             <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
                 <TextBox x:Name="Search" Classes="search" PlaceholderText="Search"
                          h:FocusBehavior.WhenVisible="True"

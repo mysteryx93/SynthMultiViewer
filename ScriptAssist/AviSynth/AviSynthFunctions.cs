@@ -170,9 +170,16 @@ public static class AviSynthFunctions
         }
 
         token.ThrowIfCancellationRequested();
-        var own = Parse(text, lexer, token);
+        var clean = AviSynthPatterns.Clean(text, lexer, token: token);
+        var quoted = AviSynthPatterns.Clean(text, lexer, maskStrings: false, token: token);
+        var own = new List<Symbol>();
+        foreach (var span in Spans(clean, quoted, token))
+        {
+            own.Add(span.Symbol);
+        }
+
         var deps = new List<string>();
-        foreach (var specifier in ImportSpecifiers(text, lexer, token))
+        foreach (var specifier in ImportSpecifiers(clean, quoted, token))
         {
             token.ThrowIfCancellationRequested();
             if (includes.TryPath(specifier, fromPath, out var depPath) &&
