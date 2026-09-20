@@ -1563,7 +1563,7 @@ internal static class VapourSynthBinder
                 var at = AfterKeyword(quoted, span.Start, span.End, "class");
                 if (TryIdent(quoted, ref at, span.End, out var name))
                 {
-                    ReplaceSymbol(members, new(name, null));
+                    ReplaceSymbol(members, ClassExport(quoted, clean, span, classes, statements, scopes, name));
                 }
 
                 continue;

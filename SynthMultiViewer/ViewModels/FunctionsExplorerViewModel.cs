@@ -133,8 +133,7 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// Gets whether Go To can move the caret to a This-file header.
     /// </summary>
     public bool CanGoTo =>
-        Editor != null && SelectedFunction?.Offset != null && ReferenceEquals(Editor, _loaded) &&
-        Editor.DocumentVersion == _browseVersion;
+        Editor != null && SelectedFunction?.Offset != null && ReferenceEquals(Editor, _loaded);
 
     /// <summary>
     /// Reloads catalogs then rebuilds the list from the last editor snapshot.
@@ -256,6 +255,11 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
                 return;
             }
 
+            if (editor.DocumentVersion != _browseVersion)
+            {
+                groups = WithoutOffsets(groups);
+            }
+
             Groups.Replace(groups);
             IndexCatalog();
             SelectedGroup = Groups.ElementAtOrDefault(0);
@@ -317,6 +321,8 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
             return;
         }
 
+        Action<int, int, int> replaced = OnTextReplaced;
+        editor.TextReplaced += replaced;
         _editorWatch = new CompositeDisposable(
             editor.WhenAnyValue(x => x.Kind, x => x.FileName)
                 .Skip(1)
@@ -324,13 +330,7 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
                 {
                     _ = ReloadAsync();
                 }),
-            editor.WhenAnyValue(x => x.DocumentVersion)
-                .Skip(1)
-                .Subscribe(_ =>
-                {
-                    this.RaisePropertyChanged(nameof(CanInsert));
-                    this.RaisePropertyChanged(nameof(CanGoTo));
-                }));
+            Disposable.Create(() => editor.TextReplaced -= replaced));
         _ = ReloadAsync();
     }
 
@@ -339,6 +339,106 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         _browseCts?.Cancel();
         _browseCts?.Dispose();
         _browseCts = null;
+    }
+
+    private void OnTextReplaced(int offset, int removal, int insertion)
+    {
+        if (_loaded == null || Groups.Count == 0)
+        {
+            return;
+        }
+
+        var groups = new List<BrowseGroup>(Groups.Count);
+        var changed = false;
+        foreach (var group in Groups)
+        {
+            var mapped = MapFunctions(group.Functions, offset, removal, insertion, out var groupChanged);
+            groups.Add(groupChanged ? group with { Functions = mapped } : group);
+            changed |= groupChanged;
+        }
+
+        if (!changed)
+        {
+            return;
+        }
+
+        if (SelectedFunction != null)
+        {
+            SelectedFunction = MapFunction(SelectedFunction, offset, removal, insertion);
+        }
+
+        Groups.Replace(groups);
+        IndexCatalog();
+        if (SelectedGroup != null)
+        {
+            SelectedGroup = groups.FirstOrDefault(group => group.Name == SelectedGroup.Name) ?? SelectedGroup;
+        }
+
+        RebuildLists();
+        this.RaisePropertyChanged(nameof(CanGoTo));
+    }
+
+    private static IReadOnlyList<BrowseFunction> MapFunctions(IReadOnlyList<BrowseFunction> functions, int offset,
+        int removal, int insertion, out bool changed)
+    {
+        changed = false;
+        List<BrowseFunction>? copy = null;
+        for (var i = 0; i < functions.Count; i++)
+        {
+            var mapped = MapFunction(functions[i], offset, removal, insertion);
+            if (ReferenceEquals(mapped, functions[i]))
+            {
+                continue;
+            }
+
+            copy ??= [..functions];
+            copy[i] = mapped;
+            changed = true;
+        }
+
+        return copy ?? functions;
+    }
+
+    private static BrowseFunction MapFunction(BrowseFunction function, int offset, int removal, int insertion)
+    {
+        if (function.Offset is not { } at)
+        {
+            return function;
+        }
+
+        var mapped = MapOffset(at, offset, removal, insertion);
+        return mapped == at ? function : function with { Offset = mapped };
+    }
+
+    private static int? MapOffset(int offset, int at, int removal, int insertion)
+    {
+        if (removal > 0 && offset >= at && offset < at + removal)
+        {
+            return null;
+        }
+
+        return offset >= at + removal ? offset + insertion - removal : offset;
+    }
+
+    private static IReadOnlyList<BrowseGroup> WithoutOffsets(IReadOnlyList<BrowseGroup> groups)
+    {
+        var result = new List<BrowseGroup>(groups.Count);
+        foreach (var group in groups)
+        {
+            if (group.Functions.All(function => function.Offset == null))
+            {
+                result.Add(group);
+                continue;
+            }
+
+            result.Add(group with
+            {
+                Functions = [..group.Functions.Select(function =>
+                    function.Offset == null ? function : function with { Offset = null })]
+            });
+        }
+
+        return result;
     }
 
     private void IndexCatalog()
@@ -379,8 +479,7 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
             var hits = new List<FunctionHit>();
             foreach (var hit in _catalog)
             {
-                if (hit.Function.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase) ||
-                    hit.Group.Contains(Filter, StringComparison.OrdinalIgnoreCase))
+                if (Matches(hit, Filter))
                 {
                     hits.Add(hit);
                 }
@@ -411,6 +510,13 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
             ? Functions.FirstOrDefault(item => SameFunction(item, keep)) ?? Functions.ElementAtOrDefault(0)
             : Functions.ElementAtOrDefault(0);
     }
+
+    private static bool Matches(FunctionHit hit, string filter) =>
+        hit.Function.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+        hit.Group.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+        hit.Function.InsertText.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+        string.Concat(hit.Group, ".", hit.Function.Name)
+            .Contains(filter, StringComparison.OrdinalIgnoreCase);
 
     private static bool SameFunction(BrowseFunction left, BrowseFunction right) =>
         left.InsertText == right.InsertText && left.Import == right.Import &&

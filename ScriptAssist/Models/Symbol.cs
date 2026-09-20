@@ -38,9 +38,19 @@ public sealed record Symbol(
                 return ReturnType.HasValue() ? Name + ": " + ReturnType : Name;
             }
 
-            if (Kind == SymbolKind.Namespace && ReturnType.HasValue() && ReturnType.IndexOf(':') < 0)
+            if (Kind == SymbolKind.Namespace)
             {
-                return Name + ": " + ReturnType;
+                if (Parameters is { Length: > 0 })
+                {
+                    return DisplayName + ": " + string.Join(", ", Parameters);
+                }
+
+                if (ReturnType.HasValue() && ReturnType.IndexOf(':') < 0)
+                {
+                    return Name + ": " + ReturnType;
+                }
+
+                return Name;
             }
 
             if (Kind != SymbolKind.Function)

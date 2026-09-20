@@ -505,6 +505,86 @@ public class VapourSynthAssistTests
         Assert.Contains("parameters unknown", insight.Overloads[0].Signature, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Insight_ImportedClassInit_OmitsSelf()
+    {
+        const string helper = "class Filter:\n    def __init__(self, clip):\n        pass\n";
+        const string text = "import helper\nhelper.Filter(";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var insight = service.Analyze(text, text.Length, []).Insight;
+
+        Assert.NotNull(insight);
+        Assert.Equal("Filter(clip)", insight.Overloads[0].Signature);
+    }
+
+    [Fact]
+    public void Insight_ImportedClassInit_EmptyAfterSelf()
+    {
+        const string helper = "class MotionVectors:\n    def __init__(self) -> None:\n        pass\n";
+        const string text = "import helper\nhelper.MotionVectors(";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var insight = service.Analyze(text, text.Length, []).Insight;
+
+        Assert.NotNull(insight);
+        Assert.Equal("MotionVectors()", insight.Overloads[0].Signature);
+    }
+
+    [Fact]
+    public void Insight_ImportedClass_NestedInitDoesNotBindOuter()
+    {
+        const string helper = "class Outer:\n    class Inner:\n        def __init__(self, x):\n            pass\n";
+        const string text = "import helper\nhelper.Outer(";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var insight = service.Analyze(text, text.Length, []).Insight;
+
+        Assert.NotNull(insight);
+        Assert.Contains("parameters unknown", insight.Overloads[0].Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("x", insight.Overloads[0].Signature, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Hover_ImportedEnum_ShowsMembers()
+    {
+        const string helper = "class MotionMode(CustomIntEnum):\n    SAD = 0\n    COHERENCE = 1\n";
+        const string text = "import helper\nhelper.MotionMode";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var hover = service.Analyze(text, text.Length, []).Hover;
+
+        Assert.NotNull(hover);
+        Assert.Contains("SAD", hover.Text, StringComparison.Ordinal);
+        Assert.Contains("COHERENCE", hover.Text, StringComparison.Ordinal);
+        Assert.DoesNotContain("parameters unknown", hover.Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Insight_ImportedDataclass_UsesFields()
+    {
+        const string helper = "@dataclass(kw_only=True)\nclass NNEDI3:\n    nsize: int = 0\n    opencl: bool = False\n";
+        const string text = "import helper\nhelper.NNEDI3(";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var insight = service.Analyze(text, text.Length, []).Insight;
+
+        Assert.NotNull(insight);
+        Assert.Contains("nsize", insight.Overloads[0].Signature, StringComparison.Ordinal);
+        Assert.Contains("opencl", insight.Overloads[0].Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("parameters unknown", insight.Overloads[0].Signature, StringComparison.Ordinal);
+    }
+
     private static void AssertDisplayTypes(string text)
     {
         Assert.Contains("clip:VideoNode", text, StringComparison.Ordinal);

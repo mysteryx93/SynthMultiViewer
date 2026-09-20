@@ -103,6 +103,94 @@ public class BrowseTests
     }
 
     [Fact]
+    public async Task BrowseAsync_ImportedClassInit_UsesConstructorParameters()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "class Filter:\n    def __init__(self, clip):\n        pass\n    def apply(self):\n        pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var imported = Assert.Single(groups, g => g.Name == "h");
+        var filter = Assert.Single(imported.Functions, f => f.Name == "Filter");
+        Assert.Equal("Filter(clip)", filter.Signature);
+        Assert.DoesNotContain(imported.Functions, f => f.Name == "apply");
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedEnum_ListsTypeName()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "class MotionMode(CustomIntEnum):\n    SAD = 0\n    COHERENCE = 1\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var imported = Assert.Single(groups, g => g.Name == "h");
+        var mode = Assert.Single(imported.Functions, f => f.Name == "MotionMode");
+        Assert.Equal("h.MotionMode", mode.InsertText);
+        Assert.Equal("MotionMode: SAD, COHERENCE", mode.Signature);
+        Assert.DoesNotContain("parameters unknown", mode.Signature, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedClassInit_MapsVideoNodeHint()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "class Filter:\n    def __init__(self, clip: vs.VideoNode):\n        pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var filter = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "Filter");
+        Assert.Equal("Filter(clip:VideoNode)", filter.Signature);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedClassInit_KeepsKeywordOnly()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "class Preset:\n    def __init__(self, *, tr: int | None = None):\n        pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var preset = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "Preset");
+        Assert.Contains("tr", preset.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("self", preset.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("parameters unknown", preset.Signature, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedDataclass_UsesFields()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "@dataclass\nclass NNEDI3:\n    nsize: int = 0\n    nns: int = 4\n    def apply(self):\n        pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var nnedi = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "NNEDI3");
+        Assert.Equal("h.NNEDI3()", nnedi.InsertText);
+        Assert.Contains("nsize", nnedi.Signature, StringComparison.Ordinal);
+        Assert.Contains("nns", nnedi.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("self", nnedi.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("apply", nnedi.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("parameters unknown", nnedi.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "apply");
+    }
+
+    [Fact]
     public async Task BrowseAsync_AviSynthGroups_LabelsAutoload()
     {
         const string text = "function Local(clip c) { c }\n";

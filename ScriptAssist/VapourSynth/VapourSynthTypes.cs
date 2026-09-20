@@ -220,6 +220,15 @@ public static class VapourSynthTypes
         }
 
         var mapped = FromReturn(type);
+        if (mapped.IsUnknown && type.IndexOf('|') < 0 && type.IndexOf('=') < 0)
+        {
+            var dot = type.LastIndexOf('.');
+            if (dot >= 0 && dot + 1 < type.Length)
+            {
+                mapped = FromReturn(type[(dot + 1)..].Trim());
+            }
+        }
+
         var display = !mapped.IsUnknown ? Display(mapped)
             : type == "format" ? "VideoFormat" : type;
         if (!display.HasValue())

@@ -32,9 +32,14 @@ public interface IEditorViewModel : IScriptViewModel
     /// </summary>
     void Reveal(int offset);
     /// <summary>
-    /// Gets a stamp that changes on every document edit so Go To can refuse stale offsets.
+    /// Gets a stamp that changes on every document edit.
     /// </summary>
     int DocumentVersion { get; }
+
+    /// <summary>
+    /// Raised after text is inserted or replaced. Arguments are offset, removal length, insertion length.
+    /// </summary>
+    event Action<int, int, int>? TextReplaced;
 
     /// <summary>
     /// Inserts <paramref name="text"/> at <paramref name="offset"/> and shifts the caret when it is at or after that point.
@@ -68,12 +73,13 @@ public partial class EditorViewModel : ScriptViewModel, IEditorViewModel
         DisplayName = "Script";
         this.WhenAnyValue(x => x.Kind)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(HighlightSource)));
-        Document.Changed += (_, _) =>
+        Document.Changed += (_, e) =>
         {
             DocumentVersion++;
             this.RaisePropertyChanged(nameof(DocumentVersion));
             this.RaisePropertyChanged(nameof(Script));
             this.RaisePropertyChanged(nameof(IsDirty));
+            TextReplaced?.Invoke(e.Offset, e.RemovalLength, e.InsertionLength);
         };
     }
 
@@ -83,6 +89,9 @@ public partial class EditorViewModel : ScriptViewModel, IEditorViewModel
 
     /// <inheritdoc />
     public int DocumentVersion { get; private set; }
+
+    /// <inheritdoc />
+    public event Action<int, int, int>? TextReplaced;
 
     /// <summary>
     /// Gets the live editor document. Text is materialized from this on save, run, and analysis.

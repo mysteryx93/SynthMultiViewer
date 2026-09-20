@@ -438,6 +438,12 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
                 var name = shown.DisplayName;
                 items.Add(new(name, shown.Signature, qualifier + "." + name + "()", import));
             }
+            else if (symbol.Kind == SymbolKind.Namespace && !symbol.ReturnType.HasValue())
+            {
+                var shown = VapourSynthTypes.ForDisplay(symbol);
+                var name = shown.DisplayName;
+                items.Add(new(name, shown.Signature, qualifier + "." + name, import));
+            }
 
             var nested = symbol.ReturnType != null ? VapourSynthTypes.ScriptOf(new(symbol.ReturnType)) : null;
             if (nested != null)

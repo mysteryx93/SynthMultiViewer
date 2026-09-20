@@ -102,6 +102,34 @@ public class FunctionsExplorerViewModelTests
     }
 
     [Fact]
+    public async Task Filter_DottedName_MatchesInsertText()
+    {
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("vsdenoise",
+                [
+                    new BrowseFunction("MotionMode", "MotionMode: SAD, COHERENCE", "vsdenoise.MotionMode")
+                ]),
+                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
+            ]);
+        var model = new FunctionsExplorerViewModel
+        {
+            Languages = languages.Object,
+            Editor = new EditorViewModel()
+        };
+        await model.ReloadAsync();
+
+        model.Filter = "vsdenoise.MotionMode";
+
+        var hit = Assert.Single(model.Hits);
+        Assert.Equal("MotionMode", hit.Function.Name);
+        Assert.Equal("vsdenoise", hit.Group);
+    }
+
+    [Fact]
     public async Task Filter_GroupName_ListsThatGroup()
     {
         var languages = new Mock<IScriptLanguageFactory>();
@@ -426,7 +454,8 @@ public class FunctionsExplorerViewModelTests
         Assert.Equal("def Foo():\n    pass\nFoo()", editor.Script);
         Assert.Equal(editor.Script.Length - 1, editor.CaretOffset);
         Assert.True(model.CanInsert);
-        Assert.False(model.CanGoTo);
+        Assert.True(model.CanGoTo);
+        Assert.Equal(0, model.SelectedFunction?.Offset);
     }
 
     [Fact]
@@ -448,6 +477,29 @@ public class FunctionsExplorerViewModelTests
 
         Assert.False(model.CanGoTo);
         Assert.True(model.CanInsert);
+    }
+
+    [Fact]
+    public async Task GoTo_InsertBeforeHeader_ShiftsOffset()
+    {
+        var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("This file",
+                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
+            ]);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        await model.ReloadAsync();
+
+        editor.Insert(0, "import vs\n");
+        await model.GoTo.Execute();
+
+        Assert.True(model.CanGoTo);
+        Assert.Equal("import vs\n".Length, editor.CaretOffset);
+        Assert.Equal("import vs\n".Length, model.SelectedFunction?.Offset);
     }
 
     [Fact]
