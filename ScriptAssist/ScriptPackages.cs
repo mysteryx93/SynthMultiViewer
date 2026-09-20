@@ -19,13 +19,15 @@ public static class ScriptPackages
     /// <summary>
     /// Returns import names from <c>.dist-info</c> / <c>.egg-info</c> and loose root <c>*.py</c> files.
     /// </summary>
-    public static IReadOnlyList<string> List(IReadOnlyList<string> roots, IFileSystemService files)
+    public static IReadOnlyList<string> List(IReadOnlyList<string> roots, IFileSystemService files,
+        CancellationToken token = default)
     {
         roots.CheckNotNull();
         files.CheckNotNull();
         var names = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var root in roots)
         {
+            token.ThrowIfCancellationRequested();
             if (!root.HasText() || !DirectoryExists(files, root))
             {
                 continue;
@@ -33,22 +35,25 @@ public static class ScriptPackages
 
             foreach (var directory in Directories(files, root))
             {
+                token.ThrowIfCancellationRequested();
                 var folder = files.Path.GetFileName(directory);
                 if (folder.EndsWith(".dist-info", StringComparison.OrdinalIgnoreCase) ||
                     folder.EndsWith(".egg-info", StringComparison.OrdinalIgnoreCase))
                 {
-                    TryAddDistribution(directory, names, files);
+                    TryAddDistribution(directory, names, files, token);
                 }
             }
 
             foreach (var file in Files(files, root, "*.egg-info"))
             {
-                TryAddMetadata(file, names, files);
+                token.ThrowIfCancellationRequested();
+                TryAddMetadata(file, names, files, token);
             }
 
             foreach (var file in Files(files, root, "*.py"))
             {
-                TryAddLoose(file, names, files);
+                token.ThrowIfCancellationRequested();
+                TryAddLoose(file, names, files, token);
             }
         }
 
@@ -60,8 +65,10 @@ public static class ScriptPackages
         return [..names];
     }
 
-    private static void TryAddDistribution(string directory, SortedSet<string> names, IFileSystemService files)
+    private static void TryAddDistribution(string directory, SortedSet<string> names, IFileSystemService files,
+        CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         var metadata = files.Path.Combine(directory, "METADATA");
         if (!FileExists(files, metadata))
         {
@@ -69,24 +76,30 @@ public static class ScriptPackages
         }
 
         var text = TryRead(files, metadata);
+        token.ThrowIfCancellationRequested();
         if (text == null || !TryPackage(text, out var distribution))
         {
             return;
         }
 
-        if (NativeOnly(files, directory))
+        var record = TryRead(files, files.Path.Combine(directory, "RECORD"));
+        token.ThrowIfCancellationRequested();
+        if (NativeOnly(record))
         {
             return;
         }
 
-        foreach (var name in ImportNames(directory, distribution, files))
+        foreach (var name in ImportNames(directory, distribution, files, record))
         {
+            token.ThrowIfCancellationRequested();
             names.Add(name);
         }
     }
 
-    private static void TryAddMetadata(string path, SortedSet<string> names, IFileSystemService files)
+    private static void TryAddMetadata(string path, SortedSet<string> names, IFileSystemService files,
+        CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         var text = TryRead(files, path);
         if (text == null || !TryPackage(text, out var name))
         {
@@ -96,7 +109,8 @@ public static class ScriptPackages
         names.Add(ImportName(name));
     }
 
-    private static void TryAddLoose(string path, SortedSet<string> names, IFileSystemService files)
+    private static void TryAddLoose(string path, SortedSet<string> names, IFileSystemService files,
+        CancellationToken token)
     {
         var file = files.Path.GetFileName(path);
         if (file.Equals("__init__.py", StringComparison.OrdinalIgnoreCase))
@@ -111,6 +125,7 @@ public static class ScriptPackages
             return;
         }
 
+        token.ThrowIfCancellationRequested();
         var mention = TryReadPrefix(files, path, MentionLimit);
         if (mention != null && mention.Contains("vapoursynth", StringComparison.OrdinalIgnoreCase))
         {
@@ -144,7 +159,8 @@ public static class ScriptPackages
         return KnownSet.Contains(name) || KnownSet.Contains(ImportName(name)) || requiresVapourSynth;
     }
 
-    private static IReadOnlyList<string> ImportNames(string directory, string distribution, IFileSystemService files)
+    private static IReadOnlyList<string> ImportNames(string directory, string distribution, IFileSystemService files,
+        string? record)
     {
         var top = TryRead(files, files.Path.Combine(directory, "top_level.txt"));
         if (top != null)
@@ -177,7 +193,7 @@ public static class ScriptPackages
             }
         }
 
-        var fromRecord = RecordModules(files, directory);
+        var fromRecord = RecordModules(record);
         if (fromRecord.Count > 0)
         {
             return fromRecord;
@@ -187,9 +203,8 @@ public static class ScriptPackages
         return fallback.HasText() ? [fallback] : [];
     }
 
-    private static IReadOnlyList<string> RecordModules(IFileSystemService files, string directory)
+    private static IReadOnlyList<string> RecordModules(string? record)
     {
-        var record = TryRead(files, files.Path.Combine(directory, "RECORD"));
         if (record == null)
         {
             return [];
@@ -212,9 +227,7 @@ public static class ScriptPackages
             }
 
             var slash = path.IndexOf('/');
-            var module = slash < 0
-                ? files.GetPathWithoutExtension(path)
-                : path[..slash];
+            var module = slash < 0 ? WithoutExtension(path) : path[..slash];
             if (module.EndsWith(".dist-info", StringComparison.OrdinalIgnoreCase) ||
                 module.EndsWith(".egg-info", StringComparison.OrdinalIgnoreCase) ||
                 module.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase) ||
@@ -230,6 +243,14 @@ public static class ScriptPackages
         }
 
         return modules;
+    }
+
+    private static string WithoutExtension(string path)
+    {
+        var slash = path.LastIndexOf('/');
+        var name = slash < 0 ? path : path[(slash + 1)..];
+        var dot = name.LastIndexOf('.');
+        return dot < 0 ? name : name[..dot];
     }
 
     private static string ImportName(string name) => name.Replace('-', '_');
@@ -250,9 +271,8 @@ public static class ScriptPackages
         return ImportName(text[..end]);
     }
 
-    private static bool NativeOnly(IFileSystemService files, string directory)
+    private static bool NativeOnly(string? record)
     {
-        var record = TryRead(files, files.Path.Combine(directory, "RECORD"));
         if (record == null)
         {
             return false;

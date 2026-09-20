@@ -1,7 +1,12 @@
+using System.Diagnostics.CodeAnalysis;
+using HanumanInstitute.ScriptAssist.Services;
+using Moq;
+using System.IO.Abstractions;
 using Xunit;
 
 namespace HanumanInstitute.ScriptAssist.Tests.Host;
 
+[SuppressMessage("Usage", "xUnit1051:Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken")]
 public class ScriptPackagesTests
 {
     [Fact]
@@ -135,5 +140,44 @@ public class ScriptPackagesTests
 
         Assert.Contains("vstools", names);
         Assert.DoesNotContain("vs_tools", names);
+    }
+
+    [Fact]
+    public void List_CancelledAfterFirstRead_Stops()
+    {
+        var cts = new CancellationTokenSource();
+        var reads = 0;
+        var path = new Mock<IPath>();
+        path.Setup(p => p.GetFileName(It.IsAny<string>()))
+            .Returns((string value) => System.IO.Path.GetFileName(value));
+        path.Setup(p => p.Combine(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns((string left, string right) => System.IO.Path.Combine(left, right));
+        var directory = new Mock<IDirectory>();
+        directory.Setup(d => d.Exists("/site")).Returns(true);
+        directory.Setup(d => d.EnumerateDirectories("/site"))
+            .Returns(Enumerable.Range(0, 40).Select(i => "/site/pkg" + i + "-1.0.dist-info"));
+        directory.Setup(d => d.EnumerateFiles("/site", "*.egg-info")).Returns([]);
+        directory.Setup(d => d.EnumerateFiles("/site", "*.py")).Returns([]);
+        var file = new Mock<IFile>();
+        file.Setup(f => f.Exists(It.IsAny<string>())).Returns(true);
+        file.Setup(f => f.ReadAllText(It.IsAny<string>())).Returns(() =>
+        {
+            reads++;
+            if (reads == 1)
+            {
+                cts.Cancel();
+            }
+
+            return "Name: pkg\nRequires-Dist: vapoursynth\n";
+        });
+        var files = new Mock<IFileSystemService>();
+        files.Setup(f => f.Directory).Returns(directory.Object);
+        files.Setup(f => f.Path).Returns(path.Object);
+        files.Setup(f => f.File).Returns(file.Object);
+
+        var act = () => ScriptPackages.List(["/site"], files.Object, cts.Token);
+
+        Assert.Throws<OperationCanceledException>(act);
+        Assert.Equal(1, reads);
     }
 }

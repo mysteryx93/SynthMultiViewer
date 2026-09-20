@@ -40,11 +40,12 @@ Reply reply = await service.GetAsync(text, caret, cancellationToken, documentPat
 `Reply` contains completion items, call insight, and hover text. Discard it if the document, caret, language, or path changed while awaiting it. `Create` returns null while `IsEnabled` is false.
 
 ```csharp
+var extra = ScriptPackages.List(roots, files, cancellationToken);
 IReadOnlyList<BrowseGroup> groups = await factory.BrowseAsync(
-    ScriptLanguageFactory.VapourSynth, text, cancellationToken, documentPath);
+    ScriptLanguageFactory.VapourSynth, text, cancellationToken, documentPath, extra);
 ```
 
-`BrowseAsync` uses the same catalog and snapshot as `GetAsync`. It still runs while `IsEnabled` is false. Unimported VapourSynth packages can appear in the explorer; they do not appear in completion until the buffer imports them. `ScriptPackages.List(roots, files)` lists installed import names from host-supplied roots.
+`BrowseAsync` uses the same catalog and snapshot as `GetAsync`. It still runs while `IsEnabled` is false. Pass `extraPackages` from `ScriptPackages.List` so unimported VapourSynth packages can appear in the explorer; they do not appear in completion until the buffer imports them.
 
 ## Catalog lifecycle
 

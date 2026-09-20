@@ -77,9 +77,9 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
         var internalFunctions = new List<BrowseFunction>();
         var plugin = new List<BrowseFunction>();
         var autoload = new List<BrowseFunction>();
-        var internalSeen = new List<Symbol>();
-        var pluginSeen = new List<Symbol>();
-        var autoloadSeen = new List<Symbol>();
+        var internalSeen = new HashSet<string>(StringComparer.Ordinal);
+        var pluginSeen = new HashSet<string>(StringComparer.Ordinal);
+        var autoloadSeen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var symbol in catalog)
         {
             token.ThrowIfCancellationRequested();
@@ -125,7 +125,7 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
     private static IReadOnlyList<BrowseFunction> Calls(IReadOnlyList<Symbol> symbols)
     {
         var items = new List<BrowseFunction>();
-        var seen = new List<Symbol>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var symbol in symbols)
         {
             if (symbol.Kind != SymbolKind.Function)
@@ -141,19 +141,26 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
         return items;
     }
 
-    private static void AddUnique(List<BrowseFunction> items, BrowseFunction item, Symbol symbol, List<Symbol> seen)
+    private static void AddUnique(List<BrowseFunction> items, BrowseFunction item, Symbol symbol, HashSet<string> seen)
     {
-        foreach (var existing in seen)
+        if (!seen.Add(OverloadKey(symbol)))
         {
-            if (SameOverload(existing, symbol) &&
-                existing.Name.Equals(symbol.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
+            return;
         }
 
-        seen.Add(symbol);
         items.Add(item);
+    }
+
+    private static string OverloadKey(Symbol symbol)
+    {
+        var name = symbol.Name.ToUpperInvariant();
+        var last = symbol.ImplicitLast ? "1" : "0";
+        if (symbol.Parameters == null)
+        {
+            return name + "\x1e" + last;
+        }
+
+        return string.Concat(name, "\x1e", last, "\x1e", string.Join('\x1f', symbol.Parameters));
     }
 
     private static int CompareFunctions(BrowseFunction left, BrowseFunction right) =>

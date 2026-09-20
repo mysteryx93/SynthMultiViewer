@@ -148,6 +148,11 @@ public sealed class LanguageService : ILanguageService
         {
             _generation++;
             _snapshots.Clear();
+            foreach (var build in _inflight.Values)
+            {
+                build.Cts.Cancel();
+            }
+
             _inflight.Clear();
             if (_language is IRefreshableLanguage refreshable)
             {

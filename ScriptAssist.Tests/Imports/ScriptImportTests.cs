@@ -1283,4 +1283,73 @@ public class ScriptImportTests
         Assert.NotNull(insight);
         Assert.Equal("Filter", insight.Overloads[0].Name);
     }
+
+    [Fact]
+    public void Analyze_WorkLimit_DoesNotReadBeyondBudget()
+    {
+        var reads = 0;
+        var script = "";
+        for (var i = 0; i < 1000; i++)
+        {
+            script += "import m" + i + "\n";
+        }
+
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _)
+        {
+            reads++;
+            return new IncludeFile("/plugins/" + specifier + ".py", "def F():\n    pass\n");
+        }
+
+        service.Analyze(script, script.Length, []);
+
+        Assert.Equal(IncludeCache.ImportWorkLimit, reads);
+    }
+
+    [Fact]
+    public void Analyze_AviSynthWorkLimit_DoesNotReadBeyondBudget()
+    {
+        var reads = 0;
+        var script = "";
+        for (var i = 0; i < 1000; i++)
+        {
+            script += "Import(\"m" + i + ".avsi\")\n";
+        }
+
+        var service = new LanguageService(new AviSynthLanguage(Includes(Read)), Catalog());
+        IncludeFile? Read(string specifier, string? _)
+        {
+            reads++;
+            return new IncludeFile("/plugins/" + specifier, "function F(clip c) { c }\n");
+        }
+
+        service.Analyze(script, script.Length, []);
+
+        Assert.Equal(IncludeCache.ImportWorkLimit, reads);
+    }
+
+    [Fact]
+    public void Analyze_WorkLimit_DoesNotCachePartialPackage()
+    {
+        var script = "";
+        for (var i = 0; i < IncludeCache.ImportWorkLimit - 1; i++)
+        {
+            script += "import m" + i + "\n";
+        }
+
+        script += "import pkg\n";
+        var service = VsService(Includes(Read));
+        service.Analyze(script, script.Length, []);
+        const string small = "import pkg\npkg.";
+        IncludeFile? Read(string specifier, string? _) => specifier switch
+        {
+            "pkg" => new IncludeFile("/plugins/pkg.py", "from pkg.sub import Foo\ndef Own():\n    pass\n"),
+            "pkg.sub" => new IncludeFile("/plugins/pkg.sub.py", "def Foo():\n    pass\n"),
+            _ => new IncludeFile("/plugins/" + specifier + ".py", "def F():\n    pass\n")
+        };
+
+        var reply = service.Analyze(small, small.Length, []);
+
+        Assert.Contains(reply.Items, x => x.InsertionText == "Foo");
+    }
 }

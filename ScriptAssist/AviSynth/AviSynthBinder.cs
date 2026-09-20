@@ -261,7 +261,7 @@ internal static class AviSynthBinder
             return TypeRef.Unknown;
         }
 
-        var trimmed = ExpressionParts.UnwrapParentheses(expression);
+        var trimmed = ExpressionParts.UnwrapParentheses(expression, stringEscapes: false);
         if (trimmed.StartsWith("Default(", StringComparison.OrdinalIgnoreCase) && trimmed.EndsWith(')'))
         {
             var inner = trimmed[8..^1];
@@ -281,11 +281,11 @@ internal static class AviSynthBinder
             }
         }
 
-        var question = ExpressionParts.IndexOutsideBrackets(trimmed, '?');
+        var question = ExpressionParts.IndexOutsideBrackets(trimmed, '?', stringEscapes: false);
         if (question >= 0)
         {
             var rest = trimmed[(question + 1)..];
-            var colon = ExpressionParts.IndexOutsideBrackets(rest, ':');
+            var colon = ExpressionParts.IndexOutsideBrackets(rest, ':', stringEscapes: false);
             if (colon >= 0)
             {
                 var whenTrue = InferCore(rest[..colon].Trim(), names, catalog, depth + 1, work, token);
@@ -304,7 +304,7 @@ internal static class AviSynthBinder
             }
         }
 
-        var parts = ExpressionParts.SplitAddMul(trimmed);
+        var parts = ExpressionParts.SplitAddMul(trimmed, stringEscapes: false);
         if (parts.Count == 1)
         {
             return InferPart(trimmed, names, catalog);
@@ -319,7 +319,8 @@ internal static class AviSynthBinder
                 continue;
             }
 
-            var next = InferPart(ExpressionParts.GroupOperand(expression, part), names, catalog);
+            var next = InferPart(ExpressionParts.GroupOperand(expression, part, stringEscapes: false), names,
+                catalog);
             if (next == AviSynthTypes.Clip)
             {
                 clip = next;
@@ -364,6 +365,7 @@ internal static class AviSynthBinder
 
     private static TypeRef InferPart(string part, Dictionary<string, TypeRef> names, IReadOnlyList<Symbol> catalog)
     {
+        part = ExpressionParts.UnwrapParentheses(part, stringEscapes: false);
         var literal = LiteralType(part);
         if (!literal.IsUnknown)
         {

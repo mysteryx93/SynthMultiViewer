@@ -193,6 +193,41 @@ public class AviSynthAssistTests
     }
 
     [Fact]
+    public void Insight_GroupedScalar_SkipsImplicitClip()
+    {
+        const string grouped = "Crop((1 + 2),";
+        const string mixed = "Crop(1.5 + (2),";
+
+        var afterGrouped = AvsService().Analyze(grouped, grouped.Length, Crop).Insight!;
+        var afterMixed = AvsService().Analyze(mixed, mixed.Length, Crop).Insight!;
+
+        Assert.Contains("top", OverloadProvider.ActiveParameterText(afterGrouped), StringComparison.Ordinal);
+        Assert.DoesNotContain("[left]", OverloadProvider.ActiveParameterText(afterGrouped), StringComparison.Ordinal);
+        Assert.Contains("top", OverloadProvider.ActiveParameterText(afterMixed), StringComparison.Ordinal);
+        Assert.DoesNotContain("[left]", OverloadProvider.ActiveParameterText(afterMixed), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Hover_GroupedInt_ShowsInt()
+    {
+        const string text = "n = (1 + 2)\nn";
+
+        var hover = AvsService().Analyze(text, text.Length, Crop).Hover;
+
+        Assert.Equal("int", hover?.Text);
+    }
+
+    [Fact]
+    public void Hover_StringEndingInBackslash_ShowsStringType()
+    {
+        const string text = "x=\"c:\\\"\nx";
+
+        var hover = AvsService().Analyze(text, text.Length, Crop).Hover;
+
+        Assert.Equal("string", hover?.Text);
+    }
+
+    [Fact]
     public void Insight_ScalarArithmetic_SkipsImplicitClip()
     {
         const string added = "Crop(10 + 20,";

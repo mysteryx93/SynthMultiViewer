@@ -1,5 +1,6 @@
 using System.Reactive.Linq;
 using System.Windows.Input;
+using HanumanInstitute.MediaSynthUI;
 using HanumanInstitute.ScriptAssist;
 using HanumanInstitute.SynthMultiViewer.ViewModels;
 using Moq;
@@ -425,6 +426,156 @@ public class FunctionsExplorerViewModelTests
         Assert.Equal("def Foo():\n    pass\nFoo()", editor.Script);
         Assert.Equal(editor.Script.Length - 1, editor.CaretOffset);
         Assert.True(model.CanInsert);
-        Assert.True(model.CanGoTo);
+        Assert.False(model.CanGoTo);
+    }
+
+    [Fact]
+    public async Task GoTo_AfterEdit_IsDisabled()
+    {
+        var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("This file",
+                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
+            ]);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        await model.ReloadAsync();
+
+        editor.Script = "x = 1\ndef Foo():\n    pass\n";
+
+        Assert.False(model.CanGoTo);
+        Assert.True(model.CanInsert);
+    }
+
+    [Fact]
+    public async Task ReloadAsync_WhileLoaded_DisablesInsert()
+    {
+        var pending = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
+            ]);
+        var model = new FunctionsExplorerViewModel
+        {
+            Languages = languages.Object,
+            Editor = new EditorViewModel()
+        };
+        await model.ReloadAsync();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .Returns(pending.Task);
+
+        var reload = model.ReloadAsync();
+
+        Assert.False(model.CanInsert);
+        Assert.False(model.CanGoTo);
+        pending.SetResult([new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])]);
+        await reload;
+        Assert.True(model.CanInsert);
+    }
+
+    [Fact]
+    public async Task Editor_KindChanged_Reloads()
+    {
+        var editor = new EditorViewModel { Script = "clip = ", Kind = ScriptKind.VapourSynth };
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(ScriptLanguageFactory.VapourSynth, It.IsAny<string>(),
+                It.IsAny<CancellationToken>(), It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
+            ]);
+        languages.Setup(f => f.BrowseAsync(ScriptLanguageFactory.AviSynth, It.IsAny<string>(),
+                It.IsAny<CancellationToken>(), It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("Internal", [new BrowseFunction("Crop", "Crop()", "Crop()")])
+            ]);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        await model.ReloadAsync();
+
+        editor.Kind = ScriptKind.AviSynth;
+        await model.ReloadAsync();
+
+        Assert.Equal("Internal", Assert.Single(model.Groups).Name);
+    }
+
+    [Fact]
+    public async Task Editor_FileNameChanged_ReloadsWithPath()
+    {
+        var editor = new EditorViewModel { Script = "clip = " };
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
+            ]);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        await model.ReloadAsync();
+
+        editor.FileName = "/tmp/script.vpy";
+        await model.ReloadAsync();
+
+        languages.Verify(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+            "/tmp/script.vpy", It.IsAny<IReadOnlyList<string>?>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task Filter_SameName_KeepsInsertText()
+    {
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("pkg.a", [new BrowseFunction("Foo", "Foo()", "pkg.a.Foo()")]),
+                new BrowseGroup("pkg.b", [new BrowseFunction("Foo", "Foo()", "pkg.b.Foo()")])
+            ]);
+        var model = new FunctionsExplorerViewModel
+        {
+            Languages = languages.Object,
+            Editor = new EditorViewModel()
+        };
+        await model.ReloadAsync();
+        model.SelectedGroup = model.Groups.Single(group => group.Name == "pkg.b");
+
+        model.Filter = "Foo";
+
+        Assert.Equal("pkg.b.Foo()", model.SelectedFunction?.InsertText);
+        Assert.Equal("pkg.b", model.SelectedHit?.Group);
+    }
+
+    [Fact]
+    public async Task ReloadAsync_IOException_KeepsListAndSetsError()
+    {
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
+            ]);
+        var model = new FunctionsExplorerViewModel
+        {
+            Languages = languages.Object,
+            Editor = new EditorViewModel()
+        };
+        await model.ReloadAsync();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ThrowsAsync(new System.IO.IOException("disk"));
+
+        await model.ReloadAsync();
+
+        Assert.Equal("disk", model.Error);
+        Assert.Equal("std", Assert.Single(model.Groups).Name);
+        Assert.False(model.CanInsert);
     }
 }

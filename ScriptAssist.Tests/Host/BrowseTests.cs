@@ -269,7 +269,7 @@ public class BrowseTests
     {
         var files = new Dictionary<string, string>(StringComparer.Ordinal);
         var extra = new List<string>();
-        for (var i = 0; i < 70; i++)
+        for (var i = 0; i < 50; i++)
         {
             var name = "pkg" + i;
             files[name] = "def F" + i + "():\n    pass\n";
@@ -296,7 +296,42 @@ public class BrowseTests
         await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, "import vapoursynth as vs\n",
             CancellationToken.None, extraPackages: extra);
 
-        Assert.Equal(70, first);
+        Assert.Equal(50, first);
         Assert.Equal(first, reads);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_UnimportedPackage_ListsSubmoduleExports()
+    {
+        const string text = "import vapoursynth as vs\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["pkg"] = "from . import sub\n",
+            [".sub"] = "def Deep():\n    pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None,
+            extraPackages: ["pkg"]);
+
+        var pkg = Assert.Single(groups, g => g.Name == "pkg");
+        var deep = Assert.Single(pkg.Functions, f => f.Name == "Deep");
+        Assert.Equal("pkg.sub.Deep()", deep.InsertText);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_FromImport_DoesNotListUnderThisFile()
+    {
+        const string text = "from helper import Filter\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "class Filter:\n    pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None,
+            extraPackages: ["helper"]);
+
+        Assert.DoesNotContain(groups, g => g.Name == "This file");
+        var helper = Assert.Single(groups, g => g.Name == "helper");
+        Assert.Contains(helper.Functions, f => f.Name == "Filter");
     }
 }

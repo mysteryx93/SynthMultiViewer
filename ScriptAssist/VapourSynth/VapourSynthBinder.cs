@@ -1396,6 +1396,11 @@ internal static class VapourSynthBinder
         }
         else
         {
+            if (!includes.CanImport())
+            {
+                return null;
+            }
+
             var file = read.Read(imported, documentPath);
             path = file?.Path;
             text = file?.Text;
@@ -1414,7 +1419,7 @@ internal static class VapourSynthBinder
         if (modulesByPath.TryGetValue(path, out var existing))
         {
             scriptModules[path] = existing;
-            return new LoadedScript(path, existing);
+            return new LoadedScript(path, existing, scriptModules);
         }
 
         if (includes.TryMembers(path, out var cached) &&
@@ -1426,7 +1431,7 @@ internal static class VapourSynthBinder
                 return null;
             }
 
-            return new LoadedScript(path, restored);
+            return new LoadedScript(path, restored, scriptModules);
         }
 
         if (!includes.TryDepth())
@@ -1438,6 +1443,11 @@ internal static class VapourSynthBinder
         {
             if (text == null)
             {
+                if (!includes.CanImport())
+                {
+                    return null;
+                }
+
                 var file = read.Read(imported, documentPath);
                 if (file == null)
                 {
@@ -1457,8 +1467,12 @@ internal static class VapourSynthBinder
             scriptModules[path] = members;
             modulesByPath[path] = members;
             FillModule(text, path, members, read, scriptModules, modulesByPath, lexer, token, includes);
-            includes.SetMembers(path, members);
-            return new LoadedScript(path, members);
+            if (!includes.Limited)
+            {
+                includes.SetMembers(path, members);
+            }
+
+            return new LoadedScript(path, members, scriptModules);
         }
         finally
         {
@@ -1732,5 +1746,8 @@ internal static class VapourSynthBinder
             Scopes = scopes ?? []
         };
 
-    internal readonly record struct LoadedScript(string Id, IReadOnlyList<Symbol> Members);
+    internal readonly record struct LoadedScript(
+        string Id,
+        IReadOnlyList<Symbol> Members,
+        IReadOnlyDictionary<string, IReadOnlyList<Symbol>> Modules);
 }

@@ -165,7 +165,8 @@ internal static class VapourSynthTypeWalker
 
         foreach (var symbol in bindings.BufferSymbols)
         {
-            if (symbol.Name.Equals(name, StringComparison.Ordinal) && symbol.Parameters != null)
+            if (symbol.Name.Equals(name, StringComparison.Ordinal) &&
+                (symbol.Kind == SymbolKind.Function || symbol.Parameters != null))
             {
                 return VapourSynthTypes.Function(symbol);
             }
@@ -352,15 +353,17 @@ internal static class VapourSynthTypeWalker
 
         if (segment.Kind == PathSegmentKind.Call)
         {
-            return symbol.Parameters == null ? TypeRef.Unknown : ReturnOf(symbol);
+            return symbol.Kind == SymbolKind.Function || symbol.Parameters != null
+                ? ReturnOf(symbol)
+                : TypeRef.Unknown;
         }
 
-        if (symbol.Parameters == null)
+        if (symbol.Kind == SymbolKind.Function || symbol.Parameters != null)
         {
-            return ReturnOf(symbol);
+            return VapourSynthTypes.Function(symbol, bound);
         }
 
-        return VapourSynthTypes.Function(symbol, bound);
+        return ReturnOf(symbol);
     }
 
     private static TypeRef Index(TypeRef current) =>

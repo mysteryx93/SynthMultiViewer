@@ -472,6 +472,39 @@ public class VapourSynthAssistTests
         Assert.Equal("int", hover?.Text);
     }
 
+    [Fact]
+    public void Insight_ImportedClass_ShowsParametersUnknown()
+    {
+        const string helper = "class Filter:\n    pass\n";
+        const string text = "import helper\nhelper.Filter(";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var insight = service.Analyze(text, text.Length, []).Insight;
+
+        Assert.NotNull(insight);
+        Assert.Contains("parameters unknown", insight.Overloads[0].Signature, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Insight_FromImportedClass_ShowsParametersUnknown()
+    {
+        const string helper = "class Filter:\n    pass\n";
+        const string text = "from helper import Filter\nFilter(";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var hover = service.Analyze(text, text.IndexOf("Filter(", StringComparison.Ordinal) + 1, []).Hover;
+        var insight = service.Analyze(text, text.Length, []).Insight;
+
+        Assert.NotNull(hover);
+        Assert.Contains("parameters unknown", hover.Text, StringComparison.Ordinal);
+        Assert.NotNull(insight);
+        Assert.Contains("parameters unknown", insight.Overloads[0].Signature, StringComparison.Ordinal);
+    }
+
     private static void AssertDisplayTypes(string text)
     {
         Assert.Contains("clip:VideoNode", text, StringComparison.Ordinal);

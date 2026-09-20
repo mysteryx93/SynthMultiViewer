@@ -77,7 +77,8 @@ internal static class ExpressionReader
         token.ThrowIfCancellationRequested();
         Trim(code, ref start, ref end);
         var unwraps = 0;
-        while (end - start >= 2 && ExpressionParts.IsParenthesized(code, start, end))
+        while (end - start >= 2 &&
+            ExpressionParts.IsParenthesized(code, start, end, language?.Lexer.StringEscapes ?? true))
         {
             if (++unwraps > MaxDepth || (work += Math.Max(1, end - start)) > MaxWork)
             {

@@ -14,7 +14,6 @@ internal sealed class IncludeCache
     private const long EntryByteLimit = 4 * 1024 * 1024;
     internal const int ImportDepthLimit = 128;
     internal const int ImportWorkLimit = 256;
-    internal const string BrowseWorkingSet = "\0browse";
     private readonly Lock _gate = new();
     private int _version;
     private readonly Dictionary<(string Specifier, string? From), string?> _paths = [];
@@ -438,12 +437,14 @@ internal readonly struct IncludeSession
         Paths = [];
         Work = new();
         Depth = new();
+        Limit = new();
     }
 
     public IncludeCache? Cache { get; }
     public int Version { get; }
     private Counter Work { get; }
     private Counter Depth { get; }
+    private Counter Limit { get; }
 
     /// <summary>
     /// Paths whose cached graphs were already verified complete during this bind.
@@ -529,9 +530,29 @@ internal readonly struct IncludeSession
     public void Finish(string? documentPath) =>
         Cache?.Retain(documentPath, Entries, Paths, Version);
 
+    /// <summary>
+    /// Gets whether this bind hit the import work limit and left graphs incomplete.
+    /// </summary>
+    public bool Limited => Limit.Value != 0;
+
+    /// <summary>
+    /// Returns whether another file can still be reserved under the import work limit.
+    /// A failed check records the graph as incomplete so it is not published.
+    /// </summary>
+    public bool CanImport()
+    {
+        if (Work.Value < IncludeCache.ImportWorkLimit && Limit.Value == 0)
+        {
+            return true;
+        }
+
+        Limit.Value = 1;
+        return false;
+    }
+
     public bool TryImport()
     {
-        if (Work.Value >= IncludeCache.ImportWorkLimit)
+        if (!CanImport())
         {
             return false;
         }

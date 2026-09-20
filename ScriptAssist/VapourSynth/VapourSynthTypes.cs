@@ -315,9 +315,14 @@ public static class VapourSynthTypes
     /// <summary>A snapshot of a resolved plugin, host, or local function not yet called.</summary>
     internal static TypeRef Function(Symbol symbol, bool bound = false)
     {
-        var parameters = symbol.Parameters ?? [];
-        return new(string.Concat(bound ? BoundFunctionPrefix : FunctionPrefix, symbol.Name, Field,
-            symbol.ReturnType ?? "", Field, string.Join(Param, parameters)));
+        var payload = string.Concat(bound ? BoundFunctionPrefix : FunctionPrefix, symbol.Name, Field,
+            symbol.ReturnType ?? "");
+        if (symbol.Parameters == null)
+        {
+            return new(payload);
+        }
+
+        return new(string.Concat(payload, Field, string.Join(Param, symbol.Parameters)));
     }
 
     /// <summary>Gets the function snapshot stored by <see cref="Function"/>.</summary>
@@ -333,13 +338,19 @@ public static class VapourSynthTypes
 
         var payload = id[prefix.Length..];
         var first = payload.IndexOf(Field);
-        var second = first < 0 ? -1 : payload.IndexOf(Field, first + 1);
-        if (second < 0)
+        if (first < 0)
         {
             return null;
         }
 
         var name = payload[..first];
+        var second = payload.IndexOf(Field, first + 1);
+        if (second < 0)
+        {
+            var unknownReturn = payload[(first + 1)..];
+            return new(name, null, ReturnType: unknownReturn.Length == 0 ? null : unknownReturn);
+        }
+
         var returnType = payload[(first + 1)..second];
         var joined = payload[(second + 1)..];
         var parameters = joined.Length == 0 ? Array.Empty<string>() : joined.Split(Param);

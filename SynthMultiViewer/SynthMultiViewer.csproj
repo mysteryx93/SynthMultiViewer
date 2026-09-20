@@ -15,7 +15,13 @@
     <InternalsVisibleTo Include="SynthMultiViewer.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <AvaloniaResource Include="Assets/**" />
+    <AvaloniaResource Include="Assets/App.ico" />
+    <AvaloniaResource Include="Assets/App.webp" />
+    <AvaloniaResource Include="Assets/HighlightAviSynth.xshd" />
+    <AvaloniaResource Include="Assets/HighlightVapourSynth.xshd" />
+    <AvaloniaResource Include="Assets/DefaultAvisynth.avs" />
+    <AvaloniaResource Include="Assets/DefaultVapourSynth.vpy" />
+    <AvaloniaResource Include="Assets/Icons/*.webp" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" />

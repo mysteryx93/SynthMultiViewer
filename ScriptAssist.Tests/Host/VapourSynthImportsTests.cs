@@ -73,7 +73,60 @@ public class VapourSynthImportsTests
         var found = VapourSynthImports.Contains(text, "helper");
 
         Assert.False(found);
-        Assert.True(VapourSynthImports.Contains(text, "h"));
+        Assert.False(VapourSynthImports.Contains(text, "h"));
+    }
+
+    [Fact]
+    public void Contains_AliasOfOtherModule_DoesNotCount()
+    {
+        const string text = "import other as helper\n";
+
+        var found = VapourSynthImports.Contains(text, "helper");
+
+        Assert.False(found);
+    }
+
+    [Fact]
+    public void Contains_DottedImport_MatchesFullPath()
+    {
+        const string text = "import pkg.sub\n";
+
+        var found = VapourSynthImports.Contains(text, "pkg.sub");
+
+        Assert.True(found);
+    }
+
+    [Fact]
+    public void Contains_LaterAssignment_ShadowsImport()
+    {
+        const string text = "import helper\nhelper = 1\n";
+
+        var found = VapourSynthImports.Contains(text, "helper");
+
+        Assert.False(found);
+    }
+
+    [Fact]
+    public void Plan_AfterSemicolon_InsertsAfterPhysicalLine()
+    {
+        const string text = "import os; x=1\nclip = ";
+
+        var plan = VapourSynthImports.Plan(text, "helper");
+
+        Assert.True(plan.Needed);
+        Assert.Equal("import os; x=1\n".Length, plan.Offset);
+        Assert.Equal("import helper\n", plan.Text);
+    }
+
+    [Fact]
+    public void Plan_AfterPrologue_SkipsShebangEncodingAndDocstring()
+    {
+        const string text = "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n\"\"\"module docstring\"\"\"\nclip = \n";
+
+        var plan = VapourSynthImports.Plan(text, "helper");
+
+        Assert.True(plan.Needed);
+        Assert.Equal(text.IndexOf("clip", StringComparison.Ordinal), plan.Offset);
     }
 
     [Fact]

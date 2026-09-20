@@ -58,7 +58,13 @@ public class LanguageServiceTests
 
         service.Invalidate();
         proceed.Set();
-        await first;
+        try
+        {
+            await first;
+        }
+        catch (OperationCanceledException)
+        {
+        }
 
         var next = service.Analyze(text, text.Length, native);
         Assert.Contains(next.Items, x => x.InsertionText == "New");
@@ -255,10 +261,17 @@ public class LanguageServiceTests
         var second = Task.Run(() => service.Analyze(text, text.Length, native));
         Assert.True(SpinWait.SpinUntil(() => Volatile.Read(ref reads) >= 2, 2000));
         proceed.Set();
-        var results = await Task.WhenAll(first, second);
+        var later = await second;
+        try
+        {
+            await first;
+        }
+        catch (OperationCanceledException)
+        {
+        }
 
-        Assert.Contains(results[1].Items, x => x.InsertionText == "New");
-        Assert.DoesNotContain(results[1].Items, x => x.InsertionText == "Old");
+        Assert.Contains(later.Items, x => x.InsertionText == "New");
+        Assert.DoesNotContain(later.Items, x => x.InsertionText == "Old");
     }
 
     [Fact]

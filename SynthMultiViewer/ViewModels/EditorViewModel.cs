@@ -32,6 +32,11 @@ public interface IEditorViewModel : IScriptViewModel
     /// </summary>
     void Reveal(int offset);
     /// <summary>
+    /// Gets a stamp that changes on every document edit so Go To can refuse stale offsets.
+    /// </summary>
+    int DocumentVersion { get; }
+
+    /// <summary>
     /// Inserts <paramref name="text"/> at <paramref name="offset"/> and shifts the caret when it is at or after that point.
     /// </summary>
     void Insert(int offset, string text);
@@ -63,11 +68,21 @@ public partial class EditorViewModel : ScriptViewModel, IEditorViewModel
         DisplayName = "Script";
         this.WhenAnyValue(x => x.Kind)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(HighlightSource)));
+        Document.Changed += (_, _) =>
+        {
+            DocumentVersion++;
+            this.RaisePropertyChanged(nameof(DocumentVersion));
+            this.RaisePropertyChanged(nameof(Script));
+            this.RaisePropertyChanged(nameof(IsDirty));
+        };
     }
 
     /// <inheritdoc />
     [Reactive]
     public partial string? FileName { get; set; }
+
+    /// <inheritdoc />
+    public int DocumentVersion { get; private set; }
 
     /// <summary>
     /// Gets the live editor document. Text is materialized from this on save, run, and analysis.
@@ -139,5 +154,5 @@ public partial class EditorViewModel : ScriptViewModel, IEditorViewModel
     /// <summary>
     /// Gets the syntax highlighting asset for the current script kind.
     /// </summary>
-    public string HighlightSource => Kind == ScriptKind.AviSynth ? "AviSynth.xshd" : "Python.xshd";
+    public string HighlightSource => Kind == ScriptKind.AviSynth ? "HighlightAviSynth.xshd" : "HighlightVapourSynth.xshd";
 }

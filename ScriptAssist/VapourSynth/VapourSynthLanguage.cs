@@ -106,7 +106,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
                 continue;
             }
 
-            var functions = ScriptCalls(pair.Key, script, bindings, token);
+            var functions = ScriptCalls(pair.Key, script, bindings.ScriptModules, token, import: null);
             if (functions.Count > 0)
             {
                 groups.Add(new(pair.Key, functions));
@@ -114,7 +114,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
         }
 
         AddInstalled(groups, bindings, imported, token, documentPath, extraPackages);
-        var local = Calls(bindings.BufferSymbols, null);
+        var local = Calls(bindings.BufferSymbols, ns: null, import: null, thisFile: true);
         if (local.Count > 0)
         {
             groups.Add(new("This file", local));
@@ -155,7 +155,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
         if (callee.Count > 1)
         {
             var member = VapourSynthMembers.Find(receiver, name, bindings, index);
-            if (member?.Parameters == null)
+            if (member == null || member.Kind != SymbolKind.Function)
             {
                 return null;
             }
@@ -185,7 +185,8 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             List<Symbol>? local = null;
             foreach (var symbol in bindings.BufferSymbols)
             {
-                if (symbol.Name.Equals(name, StringComparison.Ordinal) && symbol.Parameters != null)
+                if (symbol.Name.Equals(name, StringComparison.Ordinal) &&
+                    symbol.Kind == SymbolKind.Function)
                 {
                     local ??= [];
                     local.Add(VapourSynthTypes.ForDisplay(symbol));
@@ -255,7 +256,8 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
         {
             foreach (var symbol in bindings.BufferSymbols)
             {
-                if (symbol.Name.Equals(name, StringComparison.Ordinal) && symbol.Parameters != null)
+                if (symbol.Name.Equals(name, StringComparison.Ordinal) &&
+                    symbol.Kind == SymbolKind.Function)
                 {
                     return TypeHover(name, path, VapourSynthTypes.ForDisplay(symbol).Tip);
                 }
@@ -266,7 +268,8 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
         {
             foreach (var symbol in bindings.BufferSymbols)
             {
-                if (symbol.Name.Equals(name, StringComparison.Ordinal) && symbol.Parameters != null)
+                if (symbol.Name.Equals(name, StringComparison.Ordinal) &&
+                    symbol.Kind == SymbolKind.Function)
                 {
                     return TypeHover(name, path, VapourSynthTypes.ForDisplay(symbol).Tip);
                 }
@@ -380,14 +383,12 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             }
 
             imported.Add(loaded.Value.Id);
-            var functions = Calls(loaded.Value.Members, import: name);
+            var functions = ScriptCalls(name, loaded.Value.Id, loaded.Value.Modules, token, name);
             if (functions.Count > 0)
             {
                 groups.Add(new(name, functions));
             }
         }
-
-        session.Finish(IncludeCache.BrowseWorkingSet);
     }
 
     private static IEnumerable<string> Packages(IReadOnlyList<string>? extraPackages)
@@ -412,20 +413,22 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
     }
 
     private static IReadOnlyList<BrowseFunction> ScriptCalls(string qualifier, string script,
-        DocumentBindings bindings, CancellationToken token)
+        IReadOnlyDictionary<string, IReadOnlyList<Symbol>> modules, CancellationToken token,
+        string? import)
     {
         var items = new List<BrowseFunction>();
         var walking = new HashSet<string>(StringComparer.Ordinal);
-        CollectScript(qualifier, script, bindings, items, walking, token);
+        CollectScript(qualifier, script, modules, items, walking, token, import);
         items.Sort(CompareFunctions);
         return items;
     }
 
-    private static void CollectScript(string qualifier, string script, DocumentBindings bindings,
-        List<BrowseFunction> items, HashSet<string> walking, CancellationToken token)
+    private static void CollectScript(string qualifier, string script,
+        IReadOnlyDictionary<string, IReadOnlyList<Symbol>> modules,
+        List<BrowseFunction> items, HashSet<string> walking, CancellationToken token, string? import)
     {
         token.ThrowIfCancellationRequested();
-        if (!walking.Add(script) || !bindings.ScriptModules.TryGetValue(script, out var members))
+        if (!walking.Add(script) || !modules.TryGetValue(script, out var members))
         {
             return;
         }
@@ -436,24 +439,24 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             {
                 var shown = VapourSynthTypes.ForDisplay(symbol);
                 var name = shown.DisplayName;
-                items.Add(new(name, shown.Signature, qualifier + "." + name + "()"));
+                items.Add(new(name, shown.Signature, qualifier + "." + name + "()", import));
             }
 
             var nested = symbol.ReturnType != null ? VapourSynthTypes.ScriptOf(new(symbol.ReturnType)) : null;
             if (nested != null)
             {
-                CollectScript(qualifier + "." + symbol.Name, nested, bindings, items, walking, token);
+                CollectScript(qualifier + "." + symbol.Name, nested, modules, items, walking, token, import);
             }
         }
     }
 
     private static IReadOnlyList<BrowseFunction> Calls(IReadOnlyList<Symbol> symbols, string? ns = null,
-        string? import = null)
+        string? import = null, bool thisFile = false)
     {
         var items = new List<BrowseFunction>();
         foreach (var symbol in symbols)
         {
-            if (symbol.Kind != SymbolKind.Function)
+            if (symbol.Kind != SymbolKind.Function || thisFile && symbol.Offset == null)
             {
                 continue;
             }

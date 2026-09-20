@@ -1,5 +1,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using HanumanInstitute.MvvmDialogs;
 using HanumanInstitute.ScriptAssist.Services;
 using HanumanInstitute.ScriptAssist.VapourSynth;
@@ -15,11 +17,15 @@ namespace HanumanInstitute.SynthMultiViewer.ViewModels;
 public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClosed
 {
     private int _load;
+    private int _browseVersion = -1;
     private string _language = ScriptLanguageFactory.VapourSynth;
     private string _text = "";
     private string? _path;
     private IEditorViewModel? _loaded;
     private CancellationTokenSource? _browseCts;
+    private IDisposable? _editorWatch;
+    private string? _packageKey;
+    private IReadOnlyList<string>? _packages;
     private FunctionHit[] _catalog = [];
 
     /// <summary>
@@ -97,6 +103,12 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     public partial bool IsSearching { get; set; }
 
     /// <summary>
+    /// Gets a short error from the last failed reload, or null.
+    /// </summary>
+    [Reactive]
+    public partial string? Error { get; set; }
+
+    /// <summary>
     /// Gets the groups from the last browse.
     /// </summary>
     public BatchList<BrowseGroup> Groups { get; } = [];
@@ -121,7 +133,8 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// Gets whether Go To can move the caret to a This-file header.
     /// </summary>
     public bool CanGoTo =>
-        Editor != null && SelectedFunction?.Offset != null && ReferenceEquals(Editor, _loaded);
+        Editor != null && SelectedFunction?.Offset != null && ReferenceEquals(Editor, _loaded) &&
+        Editor.DocumentVersion == _browseVersion;
 
     /// <summary>
     /// Reloads catalogs then rebuilds the list from the last editor snapshot.
@@ -152,10 +165,14 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     public void OnClosed()
     {
         CancelBrowse();
+        _editorWatch?.Dispose();
+        _editorWatch = null;
         _load++;
         _text = "";
         _path = null;
         _loaded = null;
+        _browseVersion = -1;
+        Error = null;
         Groups.Replace([]);
         _catalog = [];
         SelectedGroup = null;
@@ -171,6 +188,8 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// </summary>
     public async Task RefreshAsync()
     {
+        _packages = null;
+        _packageKey = null;
         ResolveLanguages()?.Refresh();
         await ReloadAsync();
     }
@@ -214,6 +233,9 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         CaptureEditor();
         var languages = ResolveLanguages();
         var load = ++_load;
+        _loaded = null;
+        this.RaisePropertyChanged(nameof(CanInsert));
+        this.RaisePropertyChanged(nameof(CanGoTo));
         if (languages == null || editor == null)
         {
             return;
@@ -221,18 +243,11 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
 
         try
         {
+            Error = null;
             IReadOnlyList<string>? extra = null;
             if (_language == ScriptLanguageFactory.VapourSynth)
             {
-                var files = ResolveFiles();
-                if (files != null)
-                {
-                    extra = await Task.Run(() =>
-                    {
-                        token.ThrowIfCancellationRequested();
-                        return ScriptPackages.List(VapourSynthIncludeSource.SearchRoots(), files);
-                    }, token);
-                }
+                extra = await LoadPackagesAsync(token);
             }
 
             var groups = await languages.BrowseAsync(_language, _text, token, _path, extra);
@@ -245,16 +260,51 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
             IndexCatalog();
             SelectedGroup = Groups.ElementAtOrDefault(0);
             _loaded = editor;
+            _browseVersion = editor.DocumentVersion;
             this.RaisePropertyChanged(nameof(CanInsert));
             this.RaisePropertyChanged(nameof(CanGoTo));
         }
         catch (OperationCanceledException)
         {
         }
+        catch (Exception ex)
+        {
+            if (load == _load)
+            {
+                Error = ex.Message;
+            }
+        }
+    }
+
+    private async Task<IReadOnlyList<string>?> LoadPackagesAsync(CancellationToken token)
+    {
+        var files = ResolveFiles();
+        if (files == null)
+        {
+            return null;
+        }
+
+        var roots = VapourSynthIncludeSource.SearchRoots();
+        var key = string.Join('\0', roots);
+        if (_packages != null && _packageKey == key)
+        {
+            return _packages;
+        }
+
+        var extra = await Task.Run(() => ScriptPackages.List(roots, files, token), token);
+        if (!token.IsCancellationRequested)
+        {
+            _packageKey = key;
+            _packages = extra;
+        }
+
+        return extra;
     }
 
     private void OnEditorChanged(IEditorViewModel? editor)
     {
+        _editorWatch?.Dispose();
+        _editorWatch = null;
         _loaded = null;
         this.RaisePropertyChanged(nameof(CanInsert));
         this.RaisePropertyChanged(nameof(CanGoTo));
@@ -263,6 +313,20 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
             return;
         }
 
+        _editorWatch = new CompositeDisposable(
+            editor.WhenAnyValue(x => x.Kind, x => x.FileName)
+                .Skip(1)
+                .Subscribe(pair =>
+                {
+                    _ = ReloadAsync();
+                }),
+            editor.WhenAnyValue(x => x.DocumentVersion)
+                .Skip(1)
+                .Subscribe(_ =>
+                {
+                    this.RaisePropertyChanged(nameof(CanInsert));
+                    this.RaisePropertyChanged(nameof(CanGoTo));
+                }));
         _ = ReloadAsync();
     }
 
@@ -302,7 +366,7 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
 
     private void RebuildLists()
     {
-        var keepName = SelectedFunction?.Name;
+        var keep = SelectedFunction;
         var keepGroup = SelectedHit?.Group ?? SelectedGroup?.Name;
         IsSearching = Filter.HasText();
         if (IsSearching)
@@ -319,8 +383,8 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
 
             Hits.Replace(hits);
             Functions.Replace([]);
-            SelectedHit = keepName != null
-                ? Hits.FirstOrDefault(item => item.Function.Name == keepName &&
+            SelectedHit = keep != null
+                ? Hits.FirstOrDefault(item => SameFunction(item.Function, keep) &&
                                               (keepGroup == null || item.Group == keepGroup)) ??
                   Hits.ElementAtOrDefault(0)
                 : Hits.ElementAtOrDefault(0);
@@ -338,10 +402,14 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         }
 
         Functions.Replace(SelectedGroup.Functions);
-        SelectedFunction = keepName != null
-            ? Functions.FirstOrDefault(item => item.Name == keepName) ?? Functions.ElementAtOrDefault(0)
+        SelectedFunction = keep != null
+            ? Functions.FirstOrDefault(item => SameFunction(item, keep)) ?? Functions.ElementAtOrDefault(0)
             : Functions.ElementAtOrDefault(0);
     }
+
+    private static bool SameFunction(BrowseFunction left, BrowseFunction right) =>
+        left.InsertText == right.InsertText && left.Import == right.Import &&
+        left.Signature == right.Signature && left.Offset == right.Offset;
 
     private static int CompareHits(FunctionHit left, FunctionHit right)
     {
@@ -362,10 +430,13 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         Editor.BeginUndoGroup();
         try
         {
-            if (function.Import.HasText() && !VapourSynthImports.Contains(Editor.Script, function.Import))
+            if (function.Import.HasText())
             {
-                var at = VapourSynthImports.InsertionOffset(Editor.Script);
-                Editor.Insert(at, VapourSynthImports.Statement(Editor.Script, at, function.Import));
+                var plan = VapourSynthImports.Plan(Editor.Script, function.Import);
+                if (plan.Needed)
+                {
+                    Editor.Insert(plan.Offset, plan.Text);
+                }
             }
 
             var text = function.InsertText;

@@ -138,6 +138,11 @@ public static class AviSynthFunctions
             return;
         }
 
+        if (!includes.TryImport())
+        {
+            return;
+        }
+
         var file = read.Read(specifier, fromPath);
         if (file == null)
         {
@@ -159,7 +164,7 @@ public static class AviSynthFunctions
             return;
         }
 
-        if (depth >= IncludeCache.ImportDepthLimit || !includes.TryImport())
+        if (depth >= IncludeCache.ImportDepthLimit)
         {
             return;
         }
@@ -181,6 +186,11 @@ public static class AviSynthFunctions
                 continue;
             }
 
+            if (!includes.TryImport())
+            {
+                break;
+            }
+
             var file = read.Read(specifier, fromPath);
             if (file == null)
             {
@@ -194,7 +204,10 @@ public static class AviSynthFunctions
             deps.Add(file.Value.Path);
         }
 
-        includes.SetEntry(path, new(own, deps));
+        if (!includes.Limited)
+        {
+            includes.SetEntry(path, new(own, deps));
+        }
     }
 
     private static bool EntryComplete(string path, IncludeSession includes, CancellationToken token)

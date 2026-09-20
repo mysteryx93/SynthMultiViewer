@@ -79,7 +79,7 @@ public class EditorBindingTests
         using var window = TestSupport.Show(new() { Content = view });
         var editor = view.FindControl<BindableTextEditor>("Editor")!;
 
-        Assert.Equal("AviSynth.xshd", SyntaxHighlight.GetSource(editor));
+        Assert.Equal("HighlightAviSynth.xshd", SyntaxHighlight.GetSource(editor));
         Assert.NotNull(editor.SyntaxHighlighting);
         Assert.Equal("AviSynth", editor.SyntaxHighlighting.Name);
     }
@@ -93,7 +93,7 @@ public class EditorBindingTests
         using var window = TestSupport.Show(new() { Content = view });
         var editor = view.FindControl<BindableTextEditor>("Editor")!;
 
-        Assert.Equal("Python.xshd", SyntaxHighlight.GetSource(editor));
+        Assert.Equal("HighlightVapourSynth.xshd", SyntaxHighlight.GetSource(editor));
         Assert.NotNull(editor.SyntaxHighlighting);
         Assert.Equal("Python", editor.SyntaxHighlighting.Name);
     }
