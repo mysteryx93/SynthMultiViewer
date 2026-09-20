@@ -18,6 +18,9 @@
                                  NavigateUri="https://github.com/mysteryx93/SynthMultiViewer/"
                                  FontSize="14" VerticalAlignment="Center" />
                 <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Image Source="/Assets/App.webp" Width="48" Height="48" Stretch="Uniform"
+                           RenderOptions.BitmapInterpolationMode="HighQuality"
+                           VerticalAlignment="Center" />
                     <TextBlock FontSize="20" Text="{Binding AppVersion, StringFormat='Synth Multi-Viewer v{0}'}"
                                VerticalAlignment="Center" />
                     <HyperlinkButton Content="{Binding CheckForUpdateText}"
