@@ -30,7 +30,7 @@ internal static class AviSynthBinder
         var buffer = new List<Symbol>(spans.Count);
         foreach (var span in spans)
         {
-            buffer.Add(span.Symbol);
+            buffer.Add(span.Symbol with { Offset = span.Start });
         }
 
         AviSynthFunctions.AddImports(joined, prepared.Quoted.Code, documentPath, read, buffer,

@@ -19,6 +19,8 @@
     </Window.KeyBindings>
     <DockPanel Classes="dialog-content">
         <StackPanel DockPanel.Dock="Bottom" Classes="dialog-actions">
+            <Button Content="Go To" Command="{Binding GoTo}"
+                    IsVisible="{Binding CanGoTo}" />
             <Button Content="Refresh" Command="{Binding Refresh}" />
             <Button Content="Insert" IsDefault="True" Command="{Binding Insert}"
                     IsEnabled="{Binding CanInsert}" />

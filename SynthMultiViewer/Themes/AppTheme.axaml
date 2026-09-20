@@ -151,6 +151,9 @@
         <Setter Property="Padding" Value="10,0,4,0" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
+    <Style Selector="ListBox">
+        <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
+    </Style>
     <Style Selector="ListBox.compact">
         <Setter Property="AutoScrollToSelectedItem" Value="True" />
         <Setter Property="IsTextSearchEnabled" Value="False" />
@@ -158,7 +161,7 @@
         <Setter Property="h:ListBoxTextSearch.Enabled" Value="True" />
         <Setter Property="FocusAdorner">
             <FocusAdornerTemplate>
-                <Border Margin="0,0,14,0" BorderThickness="2"
+                <Border BorderThickness="2"
                         BorderBrush="{DynamicResource SystemControlFocusVisualPrimaryBrush}"
                         IsHitTestVisible="False" />
             </FocusAdornerTemplate>
@@ -169,7 +172,7 @@
         <Setter Property="MaxHeight" Value="28" />
         <Setter Property="Height" Value="28" />
         <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0,0,14,0" />
+        <Setter Property="Margin" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Stretch" />
         <Setter Property="FocusAdorner">
@@ -253,6 +256,7 @@
         <Setter Property="ShowLineNumbers" Value="True" />
         <Setter Property="LineNumbersMargin" Value="4,0,10,0" />
         <Setter Property="WordWrap" Value="False" />
+        <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
     </Style>
     <Style Selector="StackPanel.toolbar > Button, StackPanel.toolbar > ToggleButton">
         <Setter Property="Padding" Value="6" />

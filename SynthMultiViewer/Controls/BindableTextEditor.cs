@@ -5,6 +5,7 @@ using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
+using AvaloniaEdit.Rendering;
 
 namespace HanumanInstitute.SynthMultiViewer.Controls;
 
@@ -29,6 +30,12 @@ public partial class BindableTextEditor : TextEditor
     public static readonly StyledProperty<int> BindableCaretOffsetProperty =
         AvaloniaProperty.Register<BindableTextEditor, int>(nameof(BindableCaretOffset),
             defaultBindingMode: BindingMode.TwoWay);
+
+    /// <summary>
+    /// Defines a stamp that reveals the caret line at the top of the view.
+    /// </summary>
+    public static readonly StyledProperty<int> CaretRevealProperty =
+        AvaloniaProperty.Register<BindableTextEditor, int>(nameof(CaretReveal));
 
     /// <summary>
     /// Creates an editor that keeps <see cref="TextEditor.Document"/> as the live buffer.
@@ -102,6 +109,15 @@ public partial class BindableTextEditor : TextEditor
         set => SetValue(BindableCaretOffsetProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets a stamp that places the caret line at the top of the view.
+    /// </summary>
+    public int CaretReveal
+    {
+        get => GetValue(CaretRevealProperty);
+        set => SetValue(CaretRevealProperty, value);
+    }
+
     /// <inheritdoc />
     protected override Type StyleKeyOverride => typeof(TextEditor);
 
@@ -116,11 +132,34 @@ public partial class BindableTextEditor : TextEditor
 
         if (change.Property == BindableCaretOffsetProperty)
         {
-            var offset = BindableCaretOffset.Clamp(0, Document?.TextLength ?? 0);
-            if (CaretOffset != offset)
-            {
-                CaretOffset = offset;
-            }
+            ApplyCaretOffset();
         }
+
+        if (change.Property == CaretRevealProperty)
+        {
+            ApplyCaretOffset();
+            RevealLineAtTop();
+        }
+    }
+
+    private void ApplyCaretOffset()
+    {
+        var offset = BindableCaretOffset.Clamp(0, Document?.TextLength ?? 0);
+        if (CaretOffset != offset)
+        {
+            CaretOffset = offset;
+        }
+    }
+
+    private void RevealLineAtTop()
+    {
+        var document = Document;
+        if (document == null)
+        {
+            return;
+        }
+
+        var line = document.GetLineByOffset(CaretOffset.Clamp(0, document.TextLength)).LineNumber;
+        ScrollTo(line, 1, VisualYPosition.LineTop, 0, 0);
     }
 }

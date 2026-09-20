@@ -33,10 +33,9 @@ public partial class FunctionsExplorerView : Window
 
     private void OnFunctionDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (DataContext is FunctionsExplorerViewModel model &&
-            ((ICommand)model.Insert).CanExecute(null))
+        if (DataContext is FunctionsExplorerViewModel model)
         {
-            ((ICommand)model.Insert).Execute(null);
+            ActivateSelection(model);
         }
     }
 
@@ -71,10 +70,26 @@ public partial class FunctionsExplorerView : Window
             return;
         }
 
-        if (e.Key == Key.Enter && ((ICommand)model.Insert).CanExecute(null))
+        if (e.Key == Key.Enter && ActivateSelection(model))
         {
-            ((ICommand)model.Insert).Execute(null);
             e.Handled = true;
         }
+    }
+
+    private static bool ActivateSelection(FunctionsExplorerViewModel model)
+    {
+        if (((ICommand)model.GoTo).CanExecute(null))
+        {
+            ((ICommand)model.GoTo).Execute(null);
+            return true;
+        }
+
+        if (((ICommand)model.Insert).CanExecute(null))
+        {
+            ((ICommand)model.Insert).Execute(null);
+            return true;
+        }
+
+        return false;
     }
 }

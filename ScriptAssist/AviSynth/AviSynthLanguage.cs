@@ -133,7 +133,8 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
                 continue;
             }
 
-            AddUnique(items, new(symbol.DisplayName, symbol.Signature, symbol.DisplayName + "()"), symbol, seen);
+            AddUnique(items, new(symbol.DisplayName, symbol.Signature, symbol.DisplayName + "()",
+                Offset: symbol.Offset), symbol, seen);
         }
 
         items.Sort(CompareFunctions);

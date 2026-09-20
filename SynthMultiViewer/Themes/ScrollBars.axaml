@@ -2,8 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Styles.Resources>
         <ResourceDictionary>
-            <x:Double x:Key="AppScrollBarSize">14</x:Double>
-            <SolidColorBrush x:Key="AppScrollBarGutter" Color="{DynamicResource SystemChromeLowColor}" />
+            <x:Double x:Key="AppScrollBarSize">7</x:Double>
+            <CornerRadius x:Key="AppScrollBarRadius">4</CornerRadius>
             <SolidColorBrush x:Key="AppScrollBarTrack" Color="{DynamicResource SystemBaseLowColor}" />
             <SolidColorBrush x:Key="AppScrollBarThumb" Color="{DynamicResource SystemBaseMediumColor}" />
             <SolidColorBrush x:Key="AppScrollBarThumbPointerOver" Color="{DynamicResource SystemBaseMediumHighColor}" />
@@ -31,14 +31,14 @@
                 <Setter Property="Background" Value="{DynamicResource AppScrollBarThumb}" />
                 <Setter Property="MinWidth" Value="0" />
                 <Setter Property="MinHeight" Value="24" />
-                <Setter Property="Width" Value="{DynamicResource AppScrollBarSize}" />
+                <Setter Property="ClipToBounds" Value="False" />
+                <Setter Property="UseLayoutRounding" Value="False" />
                 <Setter Property="Template">
                     <ControlTemplate>
-                        <Border Background="Transparent">
-                            <Border Name="PART_ThumbFill" Width="6" Margin="0,1"
-                                    HorizontalAlignment="Center" CornerRadius="3"
-                                    Background="{TemplateBinding Background}" />
-                        </Border>
+                        <Border Name="PART_ThumbFill" Margin="0,0.8"
+                                CornerRadius="{DynamicResource AppScrollBarRadius}"
+                                ClipToBounds="False" UseLayoutRounding="False"
+                                Background="{TemplateBinding Background}" />
                     </ControlTemplate>
                 </Setter>
                 <Style Selector="^:pointerover">
@@ -56,14 +56,14 @@
                 <Setter Property="Background" Value="{DynamicResource AppScrollBarThumb}" />
                 <Setter Property="MinWidth" Value="24" />
                 <Setter Property="MinHeight" Value="0" />
-                <Setter Property="Height" Value="{DynamicResource AppScrollBarSize}" />
+                <Setter Property="ClipToBounds" Value="False" />
+                <Setter Property="UseLayoutRounding" Value="False" />
                 <Setter Property="Template">
                     <ControlTemplate>
-                        <Border Background="Transparent">
-                            <Border Name="PART_ThumbFill" Height="6" Margin="1,0"
-                                    VerticalAlignment="Center" CornerRadius="3"
-                                    Background="{TemplateBinding Background}" />
-                        </Border>
+                        <Border Name="PART_ThumbFill" Margin="0.8,0"
+                                CornerRadius="{DynamicResource AppScrollBarRadius}"
+                                ClipToBounds="False" UseLayoutRounding="False"
+                                Background="{TemplateBinding Background}" />
                     </ControlTemplate>
                 </Setter>
                 <Style Selector="^:pointerover">
@@ -80,84 +80,78 @@
             <ControlTheme x:Key="{x:Type ScrollBar}" TargetType="ScrollBar">
                 <Setter Property="MinWidth" Value="{DynamicResource AppScrollBarSize}" />
                 <Setter Property="MinHeight" Value="{DynamicResource AppScrollBarSize}" />
-                <Setter Property="Background" Value="{DynamicResource AppScrollBarGutter}" />
+                <Setter Property="Margin" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="ClipToBounds" Value="False" />
+                <Setter Property="UseLayoutRounding" Value="False" />
+                <Setter Property="Background" Value="{DynamicResource AppScrollBarTrack}" />
                 <Style Selector="^:vertical">
                     <Setter Property="Width" Value="{DynamicResource AppScrollBarSize}" />
-                    <Setter Property="HorizontalAlignment" Value="Right" />
                     <Setter Property="Template">
                         <ControlTemplate>
                             <Border Name="PART_Gutter" Background="{TemplateBinding Background}"
-                                    Width="{DynamicResource AppScrollBarSize}">
-                                <Panel>
-                                    <Border Name="PART_Track" Width="6" Margin="0,2"
-                                            HorizontalAlignment="Center" CornerRadius="3"
-                                            Background="{DynamicResource AppScrollBarTrack}"
-                                            IsHitTestVisible="False" />
-                                    <Track Minimum="{TemplateBinding Minimum}"
-                                           Maximum="{TemplateBinding Maximum}"
-                                           Value="{TemplateBinding Value, Mode=TwoWay}"
-                                           ViewportSize="{TemplateBinding ViewportSize}"
-                                           Orientation="{TemplateBinding Orientation}"
-                                           DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}"
-                                           IsDirectionReversed="True">
-                                        <Track.DecreaseButton>
-                                            <RepeatButton Name="PART_PageUpButton"
-                                                          Theme="{StaticResource AppScrollBarPageButton}"
-                                                          Focusable="False"
-                                                          AutomationProperties.Name="Page up" />
-                                        </Track.DecreaseButton>
-                                        <Track.IncreaseButton>
-                                            <RepeatButton Name="PART_PageDownButton"
-                                                          Theme="{StaticResource AppScrollBarPageButton}"
-                                                          Focusable="False"
-                                                          AutomationProperties.Name="Page down" />
-                                        </Track.IncreaseButton>
-                                        <Track.Thumb>
-                                            <Thumb Theme="{StaticResource AppScrollBarThumbVertical}"
-                                                   AutomationProperties.Name="Position" />
-                                        </Track.Thumb>
-                                    </Track>
-                                </Panel>
+                                    Width="{DynamicResource AppScrollBarSize}"
+                                    ClipToBounds="False" UseLayoutRounding="False">
+                                <Track ClipToBounds="False" UseLayoutRounding="False"
+                                       Minimum="{TemplateBinding Minimum}"
+                                       Maximum="{TemplateBinding Maximum}"
+                                       Value="{TemplateBinding Value, Mode=TwoWay}"
+                                       ViewportSize="{TemplateBinding ViewportSize}"
+                                       Orientation="{TemplateBinding Orientation}"
+                                       DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}"
+                                       IsDirectionReversed="True">
+                                    <Track.DecreaseButton>
+                                        <RepeatButton Name="PART_PageUpButton"
+                                                      Theme="{StaticResource AppScrollBarPageButton}"
+                                                      Focusable="False"
+                                                      AutomationProperties.Name="Page up" />
+                                    </Track.DecreaseButton>
+                                    <Track.IncreaseButton>
+                                        <RepeatButton Name="PART_PageDownButton"
+                                                      Theme="{StaticResource AppScrollBarPageButton}"
+                                                      Focusable="False"
+                                                      AutomationProperties.Name="Page down" />
+                                    </Track.IncreaseButton>
+                                    <Track.Thumb>
+                                        <Thumb Theme="{StaticResource AppScrollBarThumbVertical}"
+                                               AutomationProperties.Name="Position" />
+                                    </Track.Thumb>
+                                </Track>
                             </Border>
                         </ControlTemplate>
                     </Setter>
                 </Style>
                 <Style Selector="^:horizontal">
                     <Setter Property="Height" Value="{DynamicResource AppScrollBarSize}" />
-                    <Setter Property="VerticalAlignment" Value="Bottom" />
                     <Setter Property="Template">
                         <ControlTemplate>
                             <Border Name="PART_Gutter" Background="{TemplateBinding Background}"
-                                    Height="{DynamicResource AppScrollBarSize}">
-                                <Panel>
-                                    <Border Name="PART_Track" Height="6" Margin="2,0"
-                                            VerticalAlignment="Center" CornerRadius="3"
-                                            Background="{DynamicResource AppScrollBarTrack}"
-                                            IsHitTestVisible="False" />
-                                    <Track Minimum="{TemplateBinding Minimum}"
-                                           Maximum="{TemplateBinding Maximum}"
-                                           Value="{TemplateBinding Value, Mode=TwoWay}"
-                                           ViewportSize="{TemplateBinding ViewportSize}"
-                                           Orientation="{TemplateBinding Orientation}"
-                                           DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}">
-                                        <Track.DecreaseButton>
-                                            <RepeatButton Name="PART_PageUpButton"
-                                                          Theme="{StaticResource AppScrollBarPageButton}"
-                                                          Focusable="False"
-                                                          AutomationProperties.Name="Page left" />
-                                        </Track.DecreaseButton>
-                                        <Track.IncreaseButton>
-                                            <RepeatButton Name="PART_PageDownButton"
-                                                          Theme="{StaticResource AppScrollBarPageButton}"
-                                                          Focusable="False"
-                                                          AutomationProperties.Name="Page right" />
-                                        </Track.IncreaseButton>
-                                        <Track.Thumb>
-                                            <Thumb Theme="{StaticResource AppScrollBarThumbHorizontal}"
-                                                   AutomationProperties.Name="Position" />
-                                        </Track.Thumb>
-                                    </Track>
-                                </Panel>
+                                    Height="{DynamicResource AppScrollBarSize}"
+                                    ClipToBounds="False" UseLayoutRounding="False">
+                                <Track ClipToBounds="False" UseLayoutRounding="False"
+                                       Minimum="{TemplateBinding Minimum}"
+                                       Maximum="{TemplateBinding Maximum}"
+                                       Value="{TemplateBinding Value, Mode=TwoWay}"
+                                       ViewportSize="{TemplateBinding ViewportSize}"
+                                       Orientation="{TemplateBinding Orientation}"
+                                       DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}">
+                                    <Track.DecreaseButton>
+                                        <RepeatButton Name="PART_PageUpButton"
+                                                      Theme="{StaticResource AppScrollBarPageButton}"
+                                                      Focusable="False"
+                                                      AutomationProperties.Name="Page left" />
+                                    </Track.DecreaseButton>
+                                    <Track.IncreaseButton>
+                                        <RepeatButton Name="PART_PageDownButton"
+                                                      Theme="{StaticResource AppScrollBarPageButton}"
+                                                      Focusable="False"
+                                                      AutomationProperties.Name="Page right" />
+                                    </Track.IncreaseButton>
+                                    <Track.Thumb>
+                                        <Thumb Theme="{StaticResource AppScrollBarThumbHorizontal}"
+                                               AutomationProperties.Name="Position" />
+                                    </Track.Thumb>
+                                </Track>
                             </Border>
                         </ControlTemplate>
                     </Setter>
@@ -165,4 +159,8 @@
             </ControlTheme>
         </ResourceDictionary>
     </Styles.Resources>
+    <Style Selector="ScrollViewer /template/ Panel#PART_ScrollBarsSeparator">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
 </Styles>

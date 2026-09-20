@@ -356,4 +356,75 @@ public class FunctionsExplorerViewModelTests
 
         Assert.Equal(script, editor.Script);
     }
+
+    [Fact]
+    public async Task GoTo_ThisFile_MovesCaret()
+    {
+        var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
+        editor.CaretOffset = editor.Script.Length;
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("This file",
+                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
+            ]);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        await model.ReloadAsync();
+
+        await model.GoTo.Execute();
+
+        Assert.Equal(0, editor.CaretOffset);
+        Assert.True(model.CanGoTo);
+        Assert.True(model.CanInsert);
+    }
+
+    [Fact]
+    public async Task GoTo_AlreadyAtOffset_StillReveals()
+    {
+        var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
+        editor.CaretOffset = 0;
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("This file",
+                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
+            ]);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        await model.ReloadAsync();
+        await model.GoTo.Execute();
+        var first = editor.RevealRequest;
+
+        await model.GoTo.Execute();
+
+        Assert.Equal(0, editor.CaretOffset);
+        Assert.True(editor.RevealRequest > first);
+    }
+
+    [Fact]
+    public async Task Insert_ThisFile_WritesCall()
+    {
+        var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
+        editor.CaretOffset = editor.Script.Length;
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("This file",
+                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
+            ]);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        await model.ReloadAsync();
+
+        await model.Insert.Execute();
+
+        Assert.Equal("def Foo():\n    pass\nFoo()", editor.Script);
+        Assert.Equal(editor.Script.Length - 1, editor.CaretOffset);
+        Assert.True(model.CanInsert);
+        Assert.True(model.CanGoTo);
+    }
 }

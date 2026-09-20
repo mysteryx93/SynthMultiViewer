@@ -38,7 +38,11 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         });
         this.WhenAnyValue(x => x.Editor).Subscribe(OnEditorChanged);
         this.WhenAnyValue(x => x.Editor, x => x.SelectedFunction)
-            .Subscribe(_ => this.RaisePropertyChanged(nameof(CanInsert)));
+            .Subscribe(_ =>
+            {
+                this.RaisePropertyChanged(nameof(CanInsert));
+                this.RaisePropertyChanged(nameof(CanGoTo));
+            });
     }
 
     /// <summary>
@@ -110,7 +114,14 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// <summary>
     /// Gets whether Insert can write into the current editor.
     /// </summary>
-    public bool CanInsert => Editor != null && SelectedFunction != null && ReferenceEquals(Editor, _loaded);
+    public bool CanInsert =>
+        Editor != null && SelectedFunction != null && ReferenceEquals(Editor, _loaded);
+
+    /// <summary>
+    /// Gets whether Go To can move the caret to a This-file header.
+    /// </summary>
+    public bool CanGoTo =>
+        Editor != null && SelectedFunction?.Offset != null && ReferenceEquals(Editor, _loaded);
 
     /// <summary>
     /// Reloads catalogs then rebuilds the list from the last editor snapshot.
@@ -122,6 +133,12 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// </summary>
     public RxCommandVoid Insert => field ??= ReactiveCommand.Create(InsertImpl,
         this.WhenAnyValue(x => x.CanInsert));
+
+    /// <summary>
+    /// Moves the editor caret to the selected This-file header.
+    /// </summary>
+    public RxCommandVoid GoTo => field ??= ReactiveCommand.Create(GoToImpl,
+        this.WhenAnyValue(x => x.CanGoTo));
 
     /// <summary>
     /// Clears the search box and restores the two-pane list.
@@ -145,6 +162,7 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         SelectedFunction = null;
         SelectedHit = null;
         this.RaisePropertyChanged(nameof(CanInsert));
+        this.RaisePropertyChanged(nameof(CanGoTo));
         CloseView();
     }
 
@@ -225,9 +243,10 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
 
             Groups.Replace(groups);
             IndexCatalog();
-            SelectedGroup = Groups.Count == 0 ? null : Groups[0];
+            SelectedGroup = Groups.ElementAtOrDefault(0);
             _loaded = editor;
             this.RaisePropertyChanged(nameof(CanInsert));
+            this.RaisePropertyChanged(nameof(CanGoTo));
         }
         catch (OperationCanceledException)
         {
@@ -238,6 +257,7 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     {
         _loaded = null;
         this.RaisePropertyChanged(nameof(CanInsert));
+        this.RaisePropertyChanged(nameof(CanGoTo));
         if (editor == null)
         {
             return;
@@ -360,6 +380,16 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         {
             Editor.EndUndoGroup();
         }
+    }
+
+    private void GoToImpl()
+    {
+        if (!CanGoTo || Editor == null || SelectedFunction?.Offset is not { } offset)
+        {
+            return;
+        }
+
+        Editor.Reveal(offset);
     }
 
     /// <summary>

@@ -28,6 +28,10 @@ public interface IEditorViewModel : IScriptViewModel
     /// </summary>
     int CaretOffset { get; set; }
     /// <summary>
+    /// Moves the caret to <paramref name="offset"/> and asks the editor to place that line at the top of the view.
+    /// </summary>
+    void Reveal(int offset);
+    /// <summary>
     /// Inserts <paramref name="text"/> at <paramref name="offset"/> and shifts the caret when it is at or after that point.
     /// </summary>
     void Insert(int offset, string text);
@@ -96,6 +100,19 @@ public partial class EditorViewModel : ScriptViewModel, IEditorViewModel
     /// <inheritdoc />
     [Reactive]
     public partial int CaretOffset { get; set; }
+
+    /// <summary>
+    /// Gets a stamp the editor watches so <see cref="Reveal"/> still runs when the caret is unchanged.
+    /// </summary>
+    [Reactive]
+    public partial int RevealRequest { get; set; }
+
+    /// <inheritdoc />
+    public void Reveal(int offset)
+    {
+        CaretOffset = offset.Clamp(0, Document.TextLength);
+        RevealRequest++;
+    }
 
     /// <inheritdoc />
     public void Insert(int offset, string text)

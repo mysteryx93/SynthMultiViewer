@@ -8,6 +8,7 @@
     <controls:BindableTextEditor x:Name="Editor" Document="{Binding Document}"
                                  ScriptKind="{Binding Kind}"
                                  BindableCaretOffset="{Binding CaretOffset, Mode=TwoWay}"
+                                 CaretReveal="{Binding RevealRequest}"
                                  h:FocusBehavior.WhenVisible="True"
                                  h:SyntaxHighlight.Source="{Binding HighlightSource}" />
 </UserControl>

@@ -463,7 +463,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             var insert = import != null ? import + "." + name + "()"
                 : ns == null ? name + "()"
                 : "core." + ns + "." + name + "()";
-            items.Add(new(name, shown.Signature, insert, import));
+            items.Add(new(name, shown.Signature, insert, import, shown.Offset));
         }
 
         items.Sort(CompareFunctions);

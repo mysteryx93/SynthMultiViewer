@@ -10,7 +10,8 @@ public sealed record Symbol(
     bool ImplicitLast = false,
     string? ReturnType = null,
     string? Group = null,
-    string? Title = null)
+    string? Title = null,
+    int? Offset = null)
 {
     /// <summary>
     /// Gets the last dotted segment of <see cref="Name"/>. Catalog identity stays on

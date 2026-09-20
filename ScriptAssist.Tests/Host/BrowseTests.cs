@@ -33,6 +33,7 @@ public class BrowseTests
         var local = Assert.Single(groups, g => g.Name == "This file");
         var foo = Assert.Single(local.Functions, f => f.Name == "Foo");
         Assert.Equal("Foo()", foo.InsertText);
+        Assert.Equal(0, foo.Offset);
     }
 
     [Fact]
@@ -118,6 +119,7 @@ public class BrowseTests
         var local = Assert.Single(Assert.Single(groups, g => g.Name == "This file").Functions);
         Assert.Equal("Local", local.Name);
         Assert.Equal("Local()", local.InsertText);
+        Assert.Equal(0, local.Offset);
     }
 
     [Fact]
@@ -245,7 +247,8 @@ public class BrowseTests
         var groups = await factory.BrowseAsync(ScriptLanguageFactory.AviSynth, text, CancellationToken.None);
 
         var local = Assert.Single(groups, g => g.Name == "This file");
-        Assert.Contains(local.Functions, f => f.Name == "Helper");
+        var helper = Assert.Single(local.Functions, f => f.Name == "Helper");
+        Assert.Null(helper.Offset);
     }
 
     [Fact]

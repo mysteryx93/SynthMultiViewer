@@ -1122,8 +1122,8 @@ internal static class VapourSynthBinder
         }
 
         var parameters = self.Parameters as string[] ?? [..self.Parameters];
-        BindFunction(new(self.Name, parameters, ReturnType: returnType), self.Enclosing, buffer, names,
-            visible);
+        BindFunction(new(self.Name, parameters, ReturnType: returnType, Offset: self.Start), self.Enclosing,
+            buffer, names, visible);
     }
 
     private static void BindDefBody(string quoted, StatementScanner.Span span, BindingScope? self,
