@@ -15,13 +15,25 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="ToolbarButtonPointerOver" Color="#14000000" />
-                    <SolidColorBrush x:Key="ToolbarButtonPressed" Color="#1A000000" />
+                    <SolidColorBrush x:Key="ToolbarButtonPressed" Color="#2E000000" />
                     <SolidColorBrush x:Key="ToolbarButtonChecked" Color="#18000000" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#42000000" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#68000000" />
+                    <SolidColorBrush x:Key="RepeatButtonBackgroundPointerOver" Color="#42000000" />
+                    <SolidColorBrush x:Key="RepeatButtonBackgroundPressed" Color="#68000000" />
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#42000000" />
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#68000000" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="ToolbarButtonPointerOver" Color="#33FFFFFF" />
                     <SolidColorBrush x:Key="ToolbarButtonPressed" Color="#44FFFFFF" />
                     <SolidColorBrush x:Key="ToolbarButtonChecked" Color="#28FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#48FFFFFF" />
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#76FFFFFF" />
+                    <SolidColorBrush x:Key="RepeatButtonBackgroundPointerOver" Color="#48FFFFFF" />
+                    <SolidColorBrush x:Key="RepeatButtonBackgroundPressed" Color="#76FFFFFF" />
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#48FFFFFF" />
+                    <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#76FFFFFF" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <ControlTheme x:Key="{x:Type TabStripItem}" TargetType="TabStripItem">
@@ -282,6 +294,13 @@
     </Style>
     <Style Selector="StackPanel.toolbar > ToggleButton:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource ToolbarButtonPointerOver}" />
+    </Style>
+    <Style Selector="StackPanel.toolbar > Button:pointerover:pressed /template/ ContentPresenter#PART_ContentPresenter,
+                     StackPanel.toolbar > ToggleButton:pointerover:pressed /template/ ContentPresenter#PART_ContentPresenter,
+                     StackPanel.toolbar > ToggleButton:checked:pressed /template/ ContentPresenter#PART_ContentPresenter,
+                     StackPanel.toolbar > ToggleButton:checked:pointerover:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource ToolbarButtonPressed}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
     <Style Selector="StackPanel.toolbar > Button:disabled, StackPanel.toolbar > ToggleButton:disabled">
         <Setter Property="Background" Value="Transparent" />
