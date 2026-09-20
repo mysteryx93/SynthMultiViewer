@@ -58,49 +58,50 @@
         <DockPanel DockPanel.Dock="Top">
             <StackPanel DockPanel.Dock="Right" Classes="toolbar"
                         Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Height="40" Margin="0,0,4,0">
+                        Height="40" Margin="0,0,4,0"
+                        RenderOptions.BitmapInterpolationMode="HighQuality">
                 <Button ToolTip.Tip="Run script (F5)" Command="{Binding Run}"
                         IsVisible="{Binding IsEditorSelected}">
-                    <Image Source="/Assets/Icons/Run.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/Run.webp" Classes="enabled" />
                 </Button>
                 <Button ToolTip.Tip="Save (Ctrl+S)" Command="{Binding Save}"
                         IsVisible="{Binding IsEditorSelected}">
-                    <Image Source="/Assets/Icons/Save.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/Save.webp" Classes="enabled" />
                 </Button>
                 <Button ToolTip.Tip="Save as... (Ctrl+Shift+S)" Command="{Binding SaveAs}"
                         IsVisible="{Binding IsEditorSelected}">
-                    <Image Source="/Assets/Icons/SaveAs.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/SaveAs.webp" Classes="enabled" />
                 </Button>
                 <ToggleButton ToolTip.Tip="Functions explorer (Ctrl+E)" Command="{Binding FunctionsExplorer}"
                               IsChecked="{Binding IsFunctionsExplorerOpen, Mode=OneWay}"
                               IsVisible="{Binding IsEditorSelected}">
-                    <Image Source="/Assets/Icons/Explorer.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/Explorer.webp" Classes="enabled" />
                 </ToggleButton>
                 <Separator IsVisible="{Binding IsEditorSelected}" />
                 <Button ToolTip.Tip="Go to frame... (Ctrl+G)" Command="{Binding GoTo}"
                         IsVisible="{Binding IsViewerSelected}">
-                    <Image Source="/Assets/Icons/GoTo.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/GoTo.webp" Classes="enabled" />
                 </Button>
                 <Button ToolTip.Tip="Copy frame to clipboard (Ctrl+C)" Command="{Binding CopyFrame}"
                         CommandParameter="{Binding #UI}" IsVisible="{Binding IsViewerSelected}">
-                    <Image Source="/Assets/Icons/CopyFrame.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/CopyFrame.webp" Classes="enabled" />
                 </Button>
                 <ToggleButton ToolTip.Tip="Video properties (Ctrl+I)" IsChecked="{Binding IsPropertiesOpen}"
                               IsVisible="{Binding IsViewerSelected}">
-                    <Image Source="/Assets/Icons/Properties.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/Properties.webp" Classes="enabled" />
                 </ToggleButton>
                 <Separator IsVisible="{Binding IsViewerSelected}" />
                 <ToggleButton ToolTip.Tip="Enable multi-threading (F8)" IsChecked="{Binding IsMultiThreaded}"
                               IsVisible="{Binding IsVapourSynthViewerSelected}">
-                    <Image Source="/Assets/Icons/MultiThreading.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/MultiThreading.webp" Classes="enabled" />
                 </ToggleButton>
                 <ToggleButton ToolTip.Tip="Square Pixels (F9)" IsChecked="{Binding SquarePixels}"
                               IsVisible="{Binding IsViewerSelected}">
-                    <Image Source="/Assets/Icons/SquarePixels.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/SquarePixels.webp" Classes="enabled" />
                 </ToggleButton>
                 <Button ToolTip.Tip="Load frame in all tabs (Ctrl+F6)" Command="{Binding UpdateAll}"
                         IsVisible="{Binding IsViewerSelected}">
-                    <Image Source="/Assets/Icons/Refresh.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/Refresh.webp" Classes="enabled" />
                 </Button>
                 <Separator IsVisible="{Binding IsViewerSelected}" />
                 <ComboBox x:Name="ZoomCombo" Classes="zoom" Width="95"
@@ -113,20 +114,20 @@
                                  UpdateSourceTrigger=Explicit}" />
                 <Separator IsVisible="{Binding IsViewerSelected}" />
                 <Button ToolTip.Tip="New VapourSynth script (Ctrl+N)" Command="{Binding New}">
-                    <Image Source="/Assets/Icons/NewVs.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/NewVs.webp" Classes="enabled" />
                 </Button>
                 <Button ToolTip.Tip="New AviSynth script (Ctrl+M)" Command="{Binding NewAviSynth}">
-                    <Image Source="/Assets/Icons/NewAvs.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/NewAvs.webp" Classes="enabled" />
                 </Button>
                 <Button ToolTip.Tip="Open file... (Ctrl+O)" Command="{Binding Open}">
-                    <Image Source="/Assets/Icons/Open.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/Open.webp" Classes="enabled" />
                 </Button>
                 <Separator />
                 <Button ToolTip.Tip="Settings (Ctrl+,)" Command="{Binding Settings}">
-                    <Image Source="/Assets/Icons/Settings.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/Settings.webp" Classes="enabled" />
                 </Button>
                 <Button ToolTip.Tip="Help (F1)" Command="{Binding Help}">
-                    <Image Source="/Assets/Icons/Help.png" Classes="enabled" />
+                    <Image Source="/Assets/Icons/Help.webp" Classes="enabled" />
                 </Button>
             </StackPanel>
             <TabStrip ItemsSource="{Binding ScriptList}" SelectedItem="{Binding SelectedItem}"
@@ -186,25 +187,26 @@
                                    TextWrapping="Wrap" FontSize="26" FontWeight="SemiBold" />
                         <TextBlock Text="Drop a script here" HorizontalAlignment="Center"
                                    Opacity="0.7" Margin="0,-8,0,4" />
-                        <StackPanel x:Name="StartActions" Classes="start-tiles">
+                        <StackPanel x:Name="StartActions" Classes="start-tiles"
+                                    RenderOptions.BitmapInterpolationMode="HighQuality">
                             <Button x:Name="StartNewVapourSynth" Classes="start-tile" Command="{Binding New}"
                                     ToolTip.Tip="New VapourSynth script (Ctrl+N)">
                                 <StackPanel Spacing="10">
-                                    <Image Source="/Assets/Icons/256/NewVs.png" />
+                                    <Image Source="/Assets/Icons/NewVs.webp" />
                                     <TextBlock Text="VapourSynth" />
                                 </StackPanel>
                             </Button>
                             <Button x:Name="StartNewAviSynth" Classes="start-tile" Command="{Binding NewAviSynth}"
                                     ToolTip.Tip="New AviSynth script (Ctrl+M)">
                                 <StackPanel Spacing="10">
-                                    <Image Source="/Assets/Icons/256/NewAvs.png" />
+                                    <Image Source="/Assets/Icons/NewAvs.webp" />
                                     <TextBlock Text="AviSynth" />
                                 </StackPanel>
                             </Button>
                             <Button x:Name="StartOpen" Classes="start-tile" Command="{Binding Open}"
                                     ToolTip.Tip="Open file (Ctrl+O)">
                                 <StackPanel Spacing="10">
-                                    <Image Source="/Assets/Icons/256/Open.png" />
+                                    <Image Source="/Assets/Icons/Open.webp" />
                                     <TextBlock Text="Open" />
                                 </StackPanel>
                             </Button>
