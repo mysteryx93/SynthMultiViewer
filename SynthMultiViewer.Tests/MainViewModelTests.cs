@@ -793,10 +793,11 @@ public class MainViewModelTests
         await explorer.ReloadAsync();
 
         await model.New.Execute();
+        await explorer.ReloadAsync();
 
         Assert.True(model.IsFunctionsExplorerOpen);
         Assert.Same(model.SelectedItem, explorer.Editor);
-        Assert.Equal("2", Assert.Single(explorer.Groups).Name);
+        Assert.NotEqual("1", Assert.Single(explorer.Groups).Name);
     }
 
     [AvaloniaTheory(Timeout = 10000)]

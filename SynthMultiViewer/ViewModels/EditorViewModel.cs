@@ -35,6 +35,14 @@ public interface IEditorViewModel : IScriptViewModel
     /// Inserts <paramref name="text"/> at <see cref="CaretOffset"/> and moves the caret to the end of the insert.
     /// </summary>
     void InsertAtCaret(string text);
+    /// <summary>
+    /// Starts an undo group so later inserts collapse into one undo step.
+    /// </summary>
+    void BeginUndoGroup();
+    /// <summary>
+    /// Ends the undo group started by <see cref="BeginUndoGroup"/>.
+    /// </summary>
+    void EndUndoGroup();
 }
 
 /// <summary>
@@ -104,6 +112,12 @@ public partial class EditorViewModel : ScriptViewModel, IEditorViewModel
 
     /// <inheritdoc />
     public void InsertAtCaret(string text) => Insert(CaretOffset, text);
+
+    /// <inheritdoc />
+    public void BeginUndoGroup() => Document.UndoStack.StartUndoGroup();
+
+    /// <inheritdoc />
+    public void EndUndoGroup() => Document.UndoStack.EndUndoGroup();
 
     /// <summary>
     /// Gets the syntax highlighting asset for the current script kind.

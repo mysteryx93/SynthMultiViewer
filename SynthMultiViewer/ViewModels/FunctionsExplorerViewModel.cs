@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
 using HanumanInstitute.MvvmDialogs;
 using HanumanInstitute.ScriptAssist.Services;
 using HanumanInstitute.ScriptAssist.VapourSynth;
@@ -16,6 +18,9 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     private string _language = ScriptLanguageFactory.VapourSynth;
     private string _text = "";
     private string? _path;
+    private IEditorViewModel? _loaded;
+    private CancellationTokenSource? _browseCts;
+    private FunctionHit[] _catalog = [];
 
     /// <summary>
     /// Creates an empty explorer window.
@@ -90,22 +95,22 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// <summary>
     /// Gets the groups from the last browse.
     /// </summary>
-    public ObservableCollection<BrowseGroup> Groups { get; } = [];
+    public BatchList<BrowseGroup> Groups { get; } = [];
 
     /// <summary>
     /// Gets the functions of <see cref="SelectedGroup"/> when not searching.
     /// </summary>
-    public ObservableCollection<BrowseFunction> Functions { get; } = [];
+    public BatchList<BrowseFunction> Functions { get; } = [];
 
     /// <summary>
     /// Gets matches across every group while searching.
     /// </summary>
-    public ObservableCollection<FunctionHit> Hits { get; } = [];
+    public BatchList<FunctionHit> Hits { get; } = [];
 
     /// <summary>
     /// Gets whether Insert can write into the current editor.
     /// </summary>
-    public bool CanInsert => Editor != null && SelectedFunction != null;
+    public bool CanInsert => Editor != null && SelectedFunction != null && ReferenceEquals(Editor, _loaded);
 
     /// <summary>
     /// Reloads catalogs then rebuilds the list from the last editor snapshot.
@@ -116,8 +121,7 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// Inserts the selected function at the editor caret.
     /// </summary>
     public RxCommandVoid Insert => field ??= ReactiveCommand.Create(InsertImpl,
-        this.WhenAnyValue(x => x.Editor, x => x.SelectedFunction, (editor, function) =>
-            editor != null && function != null));
+        this.WhenAnyValue(x => x.CanInsert));
 
     /// <summary>
     /// Clears the search box and restores the two-pane list.
@@ -128,7 +132,21 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// <summary>
     /// Clears the window so it can be opened again after the view is closed.
     /// </summary>
-    public void OnClosed() => CloseView();
+    public void OnClosed()
+    {
+        CancelBrowse();
+        _load++;
+        _text = "";
+        _path = null;
+        _loaded = null;
+        Groups.Replace([]);
+        _catalog = [];
+        SelectedGroup = null;
+        SelectedFunction = null;
+        SelectedHit = null;
+        this.RaisePropertyChanged(nameof(CanInsert));
+        CloseView();
+    }
 
     /// <summary>
     /// Reloads catalogs then browses the last editor snapshot.
@@ -170,44 +188,84 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     /// </summary>
     public async Task ReloadAsync()
     {
+        CancelBrowse();
+        var cts = new CancellationTokenSource();
+        _browseCts = cts;
+        var token = cts.Token;
+        var editor = Editor;
         CaptureEditor();
         var languages = ResolveLanguages();
-        if (languages == null)
-        {
-            return;
-        }
-
         var load = ++_load;
-        IReadOnlyList<string>? extra = null;
-        if (_language == ScriptLanguageFactory.VapourSynth)
-        {
-            var files = ResolveFiles();
-            extra = files == null ? null : ScriptPackages.List(VapourSynthIncludeSource.SearchRoots(), files);
-        }
-
-        var groups = await languages.BrowseAsync(_language, _text, CancellationToken.None, _path, extra);
-        if (load != _load)
+        if (languages == null || editor == null)
         {
             return;
         }
 
-        Groups.Clear();
-        foreach (var group in groups)
+        try
         {
-            Groups.Add(group);
-        }
+            IReadOnlyList<string>? extra = null;
+            if (_language == ScriptLanguageFactory.VapourSynth)
+            {
+                var files = ResolveFiles();
+                if (files != null)
+                {
+                    extra = await Task.Run(() =>
+                    {
+                        token.ThrowIfCancellationRequested();
+                        return ScriptPackages.List(VapourSynthIncludeSource.SearchRoots(), files);
+                    }, token);
+                }
+            }
 
-        SelectedGroup = Groups.Count == 0 ? null : Groups[0];
+            var groups = await languages.BrowseAsync(_language, _text, token, _path, extra);
+            if (load != _load || token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            Groups.Replace(groups);
+            IndexCatalog();
+            SelectedGroup = Groups.Count == 0 ? null : Groups[0];
+            _loaded = editor;
+            this.RaisePropertyChanged(nameof(CanInsert));
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private void OnEditorChanged(IEditorViewModel? editor)
     {
+        _loaded = null;
+        this.RaisePropertyChanged(nameof(CanInsert));
         if (editor == null)
         {
             return;
         }
 
         _ = ReloadAsync();
+    }
+
+    private void CancelBrowse()
+    {
+        _browseCts?.Cancel();
+        _browseCts?.Dispose();
+        _browseCts = null;
+    }
+
+    private void IndexCatalog()
+    {
+        var hits = new List<FunctionHit>();
+        foreach (var group in Groups)
+        {
+            foreach (var function in group.Functions)
+            {
+                hits.Add(new FunctionHit(group.Name, function));
+            }
+        }
+
+        hits.Sort(CompareHits);
+        _catalog = [..hits];
     }
 
     private void CaptureEditor()
@@ -226,30 +284,21 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
     {
         var keepName = SelectedFunction?.Name;
         var keepGroup = SelectedHit?.Group ?? SelectedGroup?.Name;
-        Functions.Clear();
-        Hits.Clear();
         IsSearching = Filter.HasText();
         if (IsSearching)
         {
             var hits = new List<FunctionHit>();
-            foreach (var group in Groups)
+            foreach (var hit in _catalog)
             {
-                foreach (var function in group.Functions)
+                if (hit.Function.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase) ||
+                    hit.Group.Contains(Filter, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (function.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase) ||
-                        group.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase))
-                    {
-                        hits.Add(new FunctionHit(group.Name, function));
-                    }
+                    hits.Add(hit);
                 }
             }
 
-            hits.Sort(CompareHits);
-            foreach (var hit in hits)
-            {
-                Hits.Add(hit);
-            }
-
+            Hits.Replace(hits);
+            Functions.Replace([]);
             SelectedHit = keepName != null
                 ? Hits.FirstOrDefault(item => item.Function.Name == keepName &&
                                               (keepGroup == null || item.Group == keepGroup)) ??
@@ -260,17 +309,15 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
         }
 
         SelectedHit = null;
+        Hits.Replace([]);
         if (SelectedGroup == null)
         {
+            Functions.Replace([]);
             SelectedFunction = null;
             return;
         }
 
-        foreach (var function in SelectedGroup.Functions)
-        {
-            Functions.Add(function);
-        }
-
+        Functions.Replace(SelectedGroup.Functions);
         SelectedFunction = keepName != null
             ? Functions.FirstOrDefault(item => item.Name == keepName) ?? Functions.ElementAtOrDefault(0)
             : Functions.ElementAtOrDefault(0);
@@ -286,24 +333,55 @@ public partial class FunctionsExplorerViewModel : WorkspaceViewModel, IViewClose
 
     private void InsertImpl()
     {
-        if (Editor == null || SelectedFunction == null)
+        if (!CanInsert || Editor == null || SelectedFunction == null)
         {
             return;
         }
 
         var function = SelectedFunction;
-        if (function.Import.HasText() && !VapourSynthImports.Contains(Editor.Script, function.Import))
+        Editor.BeginUndoGroup();
+        try
         {
-            var at = VapourSynthImports.InsertionOffset(Editor.Script);
-            Editor.Insert(at, VapourSynthImports.Statement(Editor.Script, at, function.Import));
-        }
+            if (function.Import.HasText() && !VapourSynthImports.Contains(Editor.Script, function.Import))
+            {
+                var at = VapourSynthImports.InsertionOffset(Editor.Script);
+                Editor.Insert(at, VapourSynthImports.Statement(Editor.Script, at, function.Import));
+            }
 
-        var text = function.InsertText;
-        var caret = Editor.CaretOffset;
-        Editor.InsertAtCaret(text);
-        if (text.EndsWith("()", StringComparison.Ordinal))
+            var text = function.InsertText;
+            var caret = Editor.CaretOffset;
+            Editor.InsertAtCaret(text);
+            if (text.EndsWith("()", StringComparison.Ordinal))
+            {
+                Editor.CaretOffset = caret + text.Length - 1;
+            }
+        }
+        finally
         {
-            Editor.CaretOffset = caret + text.Length - 1;
+            Editor.EndUndoGroup();
+        }
+    }
+
+    /// <summary>
+    /// Replaces items with one collection reset.
+    /// </summary>
+    public sealed class BatchList<T> : ObservableCollection<T>
+    {
+        /// <summary>
+        /// Replaces the contents and raises a single reset.
+        /// </summary>
+        public void Replace(IReadOnlyList<T> items)
+        {
+            CheckReentrancy();
+            Items.Clear();
+            foreach (var item in items)
+            {
+                Items.Add(item);
+            }
+
+            OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
+            OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+            OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
         }
     }
 

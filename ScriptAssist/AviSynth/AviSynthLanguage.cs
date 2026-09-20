@@ -77,6 +77,9 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
         var internalFunctions = new List<BrowseFunction>();
         var plugin = new List<BrowseFunction>();
         var autoload = new List<BrowseFunction>();
+        var internalSeen = new List<Symbol>();
+        var pluginSeen = new List<Symbol>();
+        var autoloadSeen = new List<Symbol>();
         foreach (var symbol in catalog)
         {
             token.ThrowIfCancellationRequested();
@@ -88,15 +91,15 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
             var item = new BrowseFunction(symbol.DisplayName, symbol.Signature, symbol.DisplayName + "()");
             if (symbol.Group == "Internal")
             {
-                internalFunctions.Add(item);
+                AddUnique(internalFunctions, item, symbol, internalSeen);
             }
             else if (symbol.Group == "Plugin")
             {
-                plugin.Add(item);
+                AddUnique(plugin, item, symbol, pluginSeen);
             }
             else
             {
-                autoload.Add(item);
+                AddUnique(autoload, item, symbol, autoloadSeen);
             }
         }
 
@@ -104,7 +107,7 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
         plugin.Sort(CompareFunctions);
         autoload.Sort(CompareFunctions);
         var groups = new List<BrowseGroup>();
-        Add(groups, "This file", Calls(AviSynthFunctions.Parse(text, Lexer, token)));
+        Add(groups, "This file", Calls(bindings.BufferSymbols));
         Add(groups, "Internal", internalFunctions);
         Add(groups, "Plugin", plugin);
         Add(groups, "Autoload", autoload);
@@ -121,7 +124,8 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
 
     private static IReadOnlyList<BrowseFunction> Calls(IReadOnlyList<Symbol> symbols)
     {
-        var items = new List<BrowseFunction>(symbols.Count);
+        var items = new List<BrowseFunction>();
+        var seen = new List<Symbol>();
         foreach (var symbol in symbols)
         {
             if (symbol.Kind != SymbolKind.Function)
@@ -129,11 +133,26 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
                 continue;
             }
 
-            items.Add(new(symbol.DisplayName, symbol.Signature, symbol.DisplayName + "()"));
+            AddUnique(items, new(symbol.DisplayName, symbol.Signature, symbol.DisplayName + "()"), symbol, seen);
         }
 
         items.Sort(CompareFunctions);
         return items;
+    }
+
+    private static void AddUnique(List<BrowseFunction> items, BrowseFunction item, Symbol symbol, List<Symbol> seen)
+    {
+        foreach (var existing in seen)
+        {
+            if (SameOverload(existing, symbol) &&
+                existing.Name.Equals(symbol.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        seen.Add(symbol);
+        items.Add(item);
     }
 
     private static int CompareFunctions(BrowseFunction left, BrowseFunction right) =>

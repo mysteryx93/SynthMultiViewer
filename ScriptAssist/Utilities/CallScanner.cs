@@ -86,7 +86,7 @@ internal static class CallScanner
             if (resolved is { Overloads.Count: > 0 })
             {
                 var current = (source ?? code)[frame.ArgumentStart..caret];
-                var first = FirstArgument(code, frame.Offset, caret);
+                var first = FirstArgument(code, frame.Offset, caret, source ?? code);
                 var used = CanonicalNames(frame.UsedNames, resolved, language);
                 var keyword = KeywordName(code[frame.ArgumentStart..caret]);
                 var slots = new int[resolved.Overloads.Count];
@@ -167,7 +167,7 @@ internal static class CallScanner
     internal static bool NativeAlias(Symbol overload) =>
         overload.Name.StartsWith("core.", StringComparison.Ordinal);
 
-    private static string FirstArgument(string code, int openParen, int caret)
+    private static string FirstArgument(string code, int openParen, int caret, string source)
     {
         var start = openParen + 1;
         if ((uint)start >= (uint)caret)
@@ -187,18 +187,33 @@ internal static class CallScanner
             {
                 if (depth == 0)
                 {
-                    return code[start..i].Trim();
+                    return Slice(source, start, i);
                 }
 
                 depth--;
             }
             else if (c == ',' && depth == 0)
             {
-                return code[start..i].Trim();
+                return Slice(source, start, i);
             }
         }
 
-        return code[start..caret].Trim();
+        return Slice(source, start, caret);
+    }
+
+    private static string Slice(string source, int start, int end)
+    {
+        if ((uint)start >= (uint)source.Length)
+        {
+            return "";
+        }
+
+        if (end > source.Length)
+        {
+            end = source.Length;
+        }
+
+        return start >= end ? "" : source[start..end].Trim();
     }
 
     private static string? KeywordName(string argument)

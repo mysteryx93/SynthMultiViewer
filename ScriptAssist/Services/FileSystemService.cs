@@ -71,7 +71,8 @@ public class FileSystemService : IFileSystemService
         {
             return Directory.EnumerateFiles(path, "*", searchOption)
                 .Where(file => extensions.Any(extension =>
-                    file.EndsWith(extension, StringComparison.OrdinalIgnoreCase)));
+                    file.EndsWith(extension, StringComparison.OrdinalIgnoreCase)))
+                .ToArray();
         }
         catch (System.IO.DirectoryNotFoundException) { }
         catch (UnauthorizedAccessException) { }

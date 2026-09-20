@@ -65,10 +65,31 @@ internal static class ExpressionParts
     public static int IndexOutsideBrackets(string expression, char symbol)
     {
         var depth = 0;
+        var quote = '\0';
         for (var i = 0; i < expression.Length; i++)
         {
             var c = expression[i];
-            if (c is '(' or '[' or '{')
+            if (quote != '\0')
+            {
+                if (c == '\\' && i + 1 < expression.Length)
+                {
+                    i++;
+                    continue;
+                }
+
+                if (c == quote)
+                {
+                    quote = '\0';
+                }
+
+                continue;
+            }
+
+            if (c is '"' or '\'')
+            {
+                quote = c;
+            }
+            else if (c is '(' or '[' or '{')
             {
                 depth++;
             }
@@ -148,10 +169,31 @@ internal static class ExpressionParts
         }
 
         var depth = 0;
+        var quote = '\0';
         for (var i = start; i < end; i++)
         {
             var c = expression[i];
-            if (c is '(' or '[' or '{')
+            if (quote != '\0')
+            {
+                if (c == '\\' && i + 1 < expression.Length)
+                {
+                    i++;
+                    continue;
+                }
+
+                if (c == quote)
+                {
+                    quote = '\0';
+                }
+
+                continue;
+            }
+
+            if (c is '"' or '\'')
+            {
+                quote = c;
+            }
+            else if (c is '(' or '[' or '{')
             {
                 depth++;
             }

@@ -110,4 +110,30 @@ public class ScriptPackagesTests
         Assert.DoesNotContain("jetpytools", names);
         Assert.DoesNotContain("rich", names);
     }
+
+    [Fact]
+    public void List_RequiresWithoutSpace_ReturnsName()
+    {
+        var files = new FakeFileSystemService()
+            .Add("/site-packages/foo-1.0.dist-info/METADATA", "Name: foo\nRequires-Dist: VapourSynth>=70\n")
+            .Add("/site-packages/bar-1.0.dist-info/METADATA", "Name: bar\nRequires-Dist: VapourSynth!=65\n");
+
+        var names = ScriptPackages.List(["/site-packages"], files);
+
+        Assert.Contains("foo", names);
+        Assert.Contains("bar", names);
+    }
+
+    [Fact]
+    public void List_TopLevelTxt_UsesDeclaredImportName()
+    {
+        var files = new FakeFileSystemService()
+            .Add("/site-packages/vs_tools-1.0.dist-info/METADATA", "Name: vs-tools\nRequires-Dist: VapourSynth\n")
+            .Add("/site-packages/vs_tools-1.0.dist-info/top_level.txt", "vstools\n");
+
+        var names = ScriptPackages.List(["/site-packages"], files);
+
+        Assert.Contains("vstools", names);
+        Assert.DoesNotContain("vs_tools", names);
+    }
 }

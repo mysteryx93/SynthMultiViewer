@@ -145,20 +145,21 @@ public static class AviSynthFunctions
             return;
         }
 
-        EnsureCached(file.Value.Path, file.Value.Text, file.Value.Path, read, ensuring, lexer, token, includes);
+        EnsureCached(file.Value.Path, file.Value.Text, file.Value.Path, read, ensuring, lexer, token, includes, 0);
         includes.SetPath(specifier, fromPath, file.Value.Path);
         Expand(file.Value.Path, buffer, visited, includes);
     }
 
     private static void EnsureCached(string path, string text, string fromPath, IIncludeSource read,
-        HashSet<string> ensuring, LexerOptions lexer, CancellationToken token, IncludeSession includes)
+        HashSet<string> ensuring, LexerOptions lexer, CancellationToken token, IncludeSession includes,
+        int depth)
     {
         if (EntryComplete(path, includes, token) || !ensuring.Add(path))
         {
             return;
         }
 
-        if (ensuring.Count > IncludeCache.ImportDepthLimit || !includes.TryImport())
+        if (depth >= IncludeCache.ImportDepthLimit || !includes.TryImport())
         {
             return;
         }
@@ -187,7 +188,8 @@ public static class AviSynthFunctions
                 continue;
             }
 
-            EnsureCached(file.Value.Path, file.Value.Text, file.Value.Path, read, ensuring, lexer, token, includes);
+            EnsureCached(file.Value.Path, file.Value.Text, file.Value.Path, read, ensuring, lexer, token, includes,
+                depth + 1);
             includes.SetPath(specifier, fromPath, file.Value.Path);
             deps.Add(file.Value.Path);
         }
@@ -204,7 +206,7 @@ public static class AviSynthFunctions
         }
 
         var walking = new HashSet<string>(StringComparer.Ordinal);
-        if (!WalkComplete(path, includes, walking, token))
+        if (!WalkComplete(path, includes, walking, token, 0))
         {
             return false;
         }
@@ -218,12 +220,12 @@ public static class AviSynthFunctions
     }
 
     private static bool WalkComplete(string path, IncludeSession includes, HashSet<string> walking,
-        CancellationToken token)
+        CancellationToken token, int depth)
     {
         token.ThrowIfCancellationRequested();
-        if (walking.Count >= IncludeCache.ImportDepthLimit)
+        if (depth >= IncludeCache.ImportDepthLimit)
         {
-            return true;
+            return false;
         }
 
         if (includes.Complete.Contains(path) || !walking.Add(path))
@@ -238,7 +240,7 @@ public static class AviSynthFunctions
 
         foreach (var dep in entry.Dependencies)
         {
-            if (!WalkComplete(dep, includes, walking, token))
+            if (!WalkComplete(dep, includes, walking, token, depth + 1))
             {
                 return false;
             }
@@ -247,9 +249,10 @@ public static class AviSynthFunctions
         return true;
     }
 
-    private static void Expand(string path, List<Symbol> buffer, HashSet<string> visited, IncludeSession includes)
+    private static void Expand(string path, List<Symbol> buffer, HashSet<string> visited, IncludeSession includes,
+        int depth = 0)
     {
-        if (visited.Count >= IncludeCache.ImportDepthLimit || !visited.Add(path) ||
+        if (depth >= IncludeCache.ImportDepthLimit || !visited.Add(path) ||
             !includes.TryEntry(path, out var entry))
         {
             return;
@@ -258,7 +261,7 @@ public static class AviSynthFunctions
         buffer.AddRange(entry.Members);
         foreach (var dep in entry.Dependencies)
         {
-            Expand(dep, buffer, visited, includes);
+            Expand(dep, buffer, visited, includes, depth + 1);
         }
     }
 

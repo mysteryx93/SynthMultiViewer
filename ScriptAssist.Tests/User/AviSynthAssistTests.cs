@@ -218,6 +218,68 @@ public class AviSynthAssistTests
     }
 
     [Fact]
+    public void Hover_StringWithQuestion_ShowsStringType()
+    {
+        const string text = "x=\"why?last:1\"\nx";
+
+        var hover = AvsService().Analyze(text, text.Length, Crop).Hover;
+
+        Assert.Equal("string", hover?.Text);
+    }
+
+    [Fact]
+    public void Hover_ParenthesizedQuote_ShowsStringType()
+    {
+        const string text = "x=(\"(\")\nx";
+
+        var hover = AvsService().Analyze(text, text.Length, Crop).Hover;
+
+        Assert.Equal("string", hover?.Text);
+    }
+
+    [Fact]
+    public void Insight_ParenthesizedString_MapsFirstArgument()
+    {
+        const string text = "Crop((\"text\"),";
+
+        var insight = AvsService().Analyze(text, text.Length, Crop).Insight!;
+
+        Assert.Contains("top", OverloadProvider.ActiveParameterText(insight), StringComparison.Ordinal);
+        Assert.DoesNotContain("[left]", OverloadProvider.ActiveParameterText(insight), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Insight_ConcatenatedString_MapsFirstArgument()
+    {
+        const string text = "Crop(\"a\" + \"b\",";
+
+        var insight = AvsService().Analyze(text, text.Length, Crop).Insight!;
+
+        Assert.Contains("top", OverloadProvider.ActiveParameterText(insight), StringComparison.Ordinal);
+        Assert.DoesNotContain("[left]", OverloadProvider.ActiveParameterText(insight), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Hover_FloatPlusInt_ShowsFloat()
+    {
+        const string text = "x=1.5 + 2\nx";
+
+        var hover = AvsService().Analyze(text, text.Length, Crop).Hover;
+
+        Assert.Equal("float", hover?.Text);
+    }
+
+    [Fact]
+    public void Hover_IntPlusFloat_ShowsFloat()
+    {
+        const string text = "x=2 + 1.5\nx";
+
+        var hover = AvsService().Analyze(text, text.Length, Crop).Hover;
+
+        Assert.Equal("float", hover?.Text);
+    }
+
+    [Fact]
     public void Complete_IntReceiver_OmitsClipMembers()
     {
         const string text = "x=1\nx.";

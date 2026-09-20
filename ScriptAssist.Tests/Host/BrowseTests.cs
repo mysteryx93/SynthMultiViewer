@@ -47,7 +47,7 @@ public class BrowseTests
         var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
 
         var imported = Assert.Single(groups, g => g.Name == "h");
-        Assert.Contains(imported.Functions, f => f.Name == "Foo" && f.InsertText == "Foo()");
+        Assert.Contains(imported.Functions, f => f.Name == "Foo" && f.InsertText == "h.Foo()");
         Assert.DoesNotContain(groups, g => g.Name == "helper");
     }
 
@@ -94,7 +94,9 @@ public class BrowseTests
         var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
 
         var imported = Assert.Single(groups, g => g.Name == "h");
-        Assert.Contains(imported.Functions, f => f.Name == "Filter" && f.InsertText == "Filter()");
+        var filter = Assert.Single(imported.Functions, f => f.Name == "Filter");
+        Assert.Equal("h.Filter()", filter.InsertText);
+        Assert.Contains("parameters unknown", filter.Signature, StringComparison.Ordinal);
         Assert.Contains(imported.Functions, f => f.Name == "Foo");
         Assert.DoesNotContain(imported.Functions, f => f.Name == "apply");
     }
@@ -214,5 +216,84 @@ public class BrowseTests
 
         var helper = Assert.Single(groups, g => g.Name == "helper");
         Assert.Contains(helper.Functions, f => f.Name == "Foo");
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedSubmodule_ListsNestedFunction()
+    {
+        const string text = "import pkg.sub\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["pkg"] = "",
+            ["pkg.sub"] = "def Deep():\n    pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var pkg = Assert.Single(groups, g => g.Name == "pkg");
+        var deep = Assert.Single(pkg.Functions, f => f.Name == "Deep");
+        Assert.Equal("pkg.sub.Deep()", deep.InsertText);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_AviSynthImport_ListsImportedFunction()
+    {
+        const string text = "Import(\"helper.avsi\")\n";
+        var factory = Languages(avisynthIncludes: Includes((_, _) =>
+            new IncludeFile("/plugins/helper.avsi", "function Helper(clip c) { c }\n")));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.AviSynth, text, CancellationToken.None);
+
+        var local = Assert.Single(groups, g => g.Name == "This file");
+        Assert.Contains(local.Functions, f => f.Name == "Helper");
+    }
+
+    [Fact]
+    public async Task BrowseAsync_AviSynthDuplicateOverloads_KeepsOneRow()
+    {
+        var factory = Languages(avisynth: AvsNative(
+            new AviSynthFilter("Crop", "c[left]i", "InternalFunctions"),
+            new AviSynthFilter("Crop", "c[left]i", "InternalFunctions"),
+            new AviSynthFilter("Crop", "c[left]i", "InternalFunctions")));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.AviSynth, "", CancellationToken.None);
+
+        Assert.Single(Assert.Single(groups, g => g.Name == "Internal").Functions, f => f.Name == "Crop");
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ManyPackagesTwice_DoesNotReread()
+    {
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+        var extra = new List<string>();
+        for (var i = 0; i < 70; i++)
+        {
+            var name = "pkg" + i;
+            files[name] = "def F" + i + "():\n    pass\n";
+            extra.Add(name);
+        }
+
+        var reads = 0;
+        var factory = Languages(vapoursynthIncludes: Includes((specifier, _) =>
+        {
+            if (!files.TryGetValue(specifier, out var text))
+            {
+                return null;
+            }
+
+            Interlocked.Increment(ref reads);
+            return new IncludeFile("/site/" + specifier + ".py", text);
+        }));
+
+        await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, "import vapoursynth as vs\n",
+            CancellationToken.None, extraPackages: extra);
+        var first = reads;
+        await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, "import vapoursynth as vs\n",
+            CancellationToken.None, extraPackages: extra);
+        await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, "import vapoursynth as vs\n",
+            CancellationToken.None, extraPackages: extra);
+
+        Assert.Equal(70, first);
+        Assert.Equal(first, reads);
     }
 }

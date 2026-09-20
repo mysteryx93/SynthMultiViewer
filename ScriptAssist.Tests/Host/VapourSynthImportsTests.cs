@@ -54,4 +54,55 @@ public class VapourSynthImportsTests
 
         Assert.Equal("\nimport havsfunc\n", line);
     }
+
+    [Fact]
+    public void Contains_ImportInsideString_ReturnsFalse()
+    {
+        const string text = "\"\"\"\nimport helper\n\"\"\"\nclip = \n";
+
+        var found = VapourSynthImports.Contains(text, "helper");
+
+        Assert.False(found);
+    }
+
+    [Fact]
+    public void Contains_AliasedImport_DoesNotBindModuleName()
+    {
+        const string text = "import helper as h\n";
+
+        var found = VapourSynthImports.Contains(text, "helper");
+
+        Assert.False(found);
+        Assert.True(VapourSynthImports.Contains(text, "h"));
+    }
+
+    [Fact]
+    public void Contains_CommaImport_FindsLaterName()
+    {
+        const string text = "import os, helper\n";
+
+        var found = VapourSynthImports.Contains(text, "helper");
+
+        Assert.True(found);
+    }
+
+    [Fact]
+    public void InsertionOffset_UnclosedFromImport_StaysBeforeStatement()
+    {
+        const string text = "from x import (\nclip = \n";
+
+        var offset = VapourSynthImports.InsertionOffset(text);
+
+        Assert.Equal(0, offset);
+    }
+
+    [Fact]
+    public void InsertionOffset_ImportAfterCall_UsesHeader()
+    {
+        const string text = "import vapoursynth as vs\nclip = helper.Foo()\nimport os\n";
+
+        var offset = VapourSynthImports.InsertionOffset(text);
+
+        Assert.Equal("import vapoursynth as vs\n".Length, offset);
+    }
 }

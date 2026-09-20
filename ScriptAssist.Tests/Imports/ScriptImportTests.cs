@@ -132,6 +132,38 @@ public class ScriptImportTests
     }
 
     [Fact]
+    public void Bind_ManyIndependentPythonImports_RestoresWithoutThrowing()
+    {
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+        var script = "";
+        const int count = 150;
+        for (var i = 0; i < count; i++)
+        {
+            files["child" + i] = "def F" + i + "(clip):\n    return clip\n";
+            script += "from child" + i + " import F" + i + "\n";
+        }
+
+        script += "F149(";
+        var language = new VapourSynthLanguage(Includes(Read));
+        var native = Array.Empty<Symbol>();
+        IncludeFile? Read(string specifier, string? _) =>
+            files.TryGetValue(specifier, out var text)
+                ? new IncludeFile("/plugins/" + specifier + ".py", text)
+                : null;
+
+        var first = language.Bind(script, native, CancellationToken.None, "/plugins/root.py");
+        var second = language.Bind(script, native, CancellationToken.None, "/plugins/root.py");
+        var third = Record.Exception(() =>
+            language.Bind(script, native, CancellationToken.None, "/plugins/root.py"));
+
+        Assert.Contains(first.BufferSymbols, x => x.Name == "F149");
+        Assert.Contains(second.BufferSymbols, x => x.Name == "F149");
+        Assert.Null(third);
+        Assert.Contains(language.Bind(script, native, CancellationToken.None, "/plugins/root.py").BufferSymbols,
+            x => x.Name == "F0");
+    }
+
+    [Fact]
     public void Analyze_ImportedModule_CompletesMembers()
     {
         const string havs = """

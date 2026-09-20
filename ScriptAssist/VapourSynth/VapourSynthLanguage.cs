@@ -101,13 +101,12 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             }
 
             var script = VapourSynthTypes.ScriptOf(pair.Value);
-            if (script == null || !imported.Add(script) ||
-                !bindings.ScriptModules.TryGetValue(script, out var members))
+            if (script == null || !imported.Add(script))
             {
                 continue;
             }
 
-            var functions = Calls(members, null);
+            var functions = ScriptCalls(pair.Key, script, bindings, token);
             if (functions.Count > 0)
             {
                 groups.Add(new(pair.Key, functions));
@@ -365,6 +364,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             }
         }
 
+        var session = new IncludeSession(Includes);
         foreach (var name in Packages(extraPackages))
         {
             token.ThrowIfCancellationRequested();
@@ -373,7 +373,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
                 continue;
             }
 
-            var loaded = VapourSynthBinder.LoadPackage(name, documentPath, _read, Lexer, token, Includes);
+            var loaded = VapourSynthBinder.LoadPackage(name, documentPath, _read, Lexer, token, session);
             if (loaded == null || imported.Contains(loaded.Value.Id) || loaded.Value.Members.Count == 0)
             {
                 continue;
@@ -386,6 +386,8 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
                 groups.Add(new(name, functions));
             }
         }
+
+        session.Finish(IncludeCache.BrowseWorkingSet);
     }
 
     private static IEnumerable<string> Packages(IReadOnlyList<string>? extraPackages)
@@ -405,6 +407,42 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             if (name.HasText())
             {
                 yield return name;
+            }
+        }
+    }
+
+    private static IReadOnlyList<BrowseFunction> ScriptCalls(string qualifier, string script,
+        DocumentBindings bindings, CancellationToken token)
+    {
+        var items = new List<BrowseFunction>();
+        var walking = new HashSet<string>(StringComparer.Ordinal);
+        CollectScript(qualifier, script, bindings, items, walking, token);
+        items.Sort(CompareFunctions);
+        return items;
+    }
+
+    private static void CollectScript(string qualifier, string script, DocumentBindings bindings,
+        List<BrowseFunction> items, HashSet<string> walking, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!walking.Add(script) || !bindings.ScriptModules.TryGetValue(script, out var members))
+        {
+            return;
+        }
+
+        foreach (var symbol in members)
+        {
+            if (symbol.Kind == SymbolKind.Function)
+            {
+                var shown = VapourSynthTypes.ForDisplay(symbol);
+                var name = shown.DisplayName;
+                items.Add(new(name, shown.Signature, qualifier + "." + name + "()"));
+            }
+
+            var nested = symbol.ReturnType != null ? VapourSynthTypes.ScriptOf(new(symbol.ReturnType)) : null;
+            if (nested != null)
+            {
+                CollectScript(qualifier + "." + symbol.Name, nested, bindings, items, walking, token);
             }
         }
     }

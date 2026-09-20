@@ -311,7 +311,7 @@ internal static class AviSynthBinder
         }
 
         var clip = TypeRef.Unknown;
-        var last = TypeRef.Unknown;
+        TypeRef? numeric = null;
         foreach (var part in parts)
         {
             if (part.Length == 0)
@@ -319,11 +319,14 @@ internal static class AviSynthBinder
                 continue;
             }
 
-            last = InferPart(ExpressionParts.GroupOperand(expression, part), names, catalog);
-            if (last == AviSynthTypes.Clip)
+            var next = InferPart(ExpressionParts.GroupOperand(expression, part), names, catalog);
+            if (next == AviSynthTypes.Clip)
             {
-                clip = last;
+                clip = next;
+                continue;
             }
+
+            numeric = CombineNumber(numeric, next);
         }
 
         if (!clip.IsUnknown)
@@ -331,8 +334,33 @@ internal static class AviSynthBinder
             return clip;
         }
 
-        return last.IsUnknown ? TypeRef.Unknown : last;
+        return numeric ?? TypeRef.Unknown;
     }
+
+    private static TypeRef CombineNumber(TypeRef? left, TypeRef right)
+    {
+        if (left == null)
+        {
+            return right;
+        }
+
+        if (left.Value.IsUnknown || right.IsUnknown)
+        {
+            return TypeRef.Unknown;
+        }
+
+        if (IsNumber(left.Value) && IsNumber(right))
+        {
+            return left.Value == AviSynthTypes.Float || right == AviSynthTypes.Float
+                ? AviSynthTypes.Float
+                : AviSynthTypes.Int;
+        }
+
+        return left.Value == right ? left.Value : TypeRef.Unknown;
+    }
+
+    private static bool IsNumber(TypeRef type) =>
+        type == AviSynthTypes.Int || type == AviSynthTypes.Float;
 
     private static TypeRef InferPart(string part, Dictionary<string, TypeRef> names, IReadOnlyList<Symbol> catalog)
     {

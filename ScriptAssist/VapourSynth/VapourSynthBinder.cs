@@ -1366,12 +1366,15 @@ internal static class VapourSynthBinder
     /// Parses column-0 exports of <paramref name="specifier"/> without binding them into a document.
     /// </summary>
     internal static LoadedScript? LoadPackage(string specifier, string? documentPath, IIncludeSource? read,
-        LexerOptions lexer, CancellationToken token, IncludeCache? includes)
+        LexerOptions lexer, CancellationToken token, IncludeCache? includes) =>
+        LoadPackage(specifier, documentPath, read, lexer, token, new IncludeSession(includes));
+
+    internal static LoadedScript? LoadPackage(string specifier, string? documentPath, IIncludeSource? read,
+        LexerOptions lexer, CancellationToken token, IncludeSession includes)
     {
         var scriptModules = new Dictionary<string, IReadOnlyList<Symbol>>(StringComparer.Ordinal);
         var modulesByPath = new Dictionary<string, SymbolList>(StringComparer.Ordinal);
-        return LoadModule(specifier, documentPath, read, scriptModules, modulesByPath, lexer, token,
-            new IncludeSession(includes));
+        return LoadModule(specifier, documentPath, read, scriptModules, modulesByPath, lexer, token, includes);
     }
 
     private static LoadedScript? LoadModule(string imported, string? documentPath, IIncludeSource? read,
@@ -1417,42 +1420,64 @@ internal static class VapourSynthBinder
         if (includes.TryMembers(path, out var cached) &&
             ModuleComplete(path, includes, token))
         {
-            RestoreModule(path, cached, scriptModules, modulesByPath, includes);
-            return new LoadedScript(path, scriptModules[path]);
-        }
-
-        if (text == null)
-        {
-            var file = read.Read(imported, documentPath);
-            if (file == null)
+            if (!RestoreModule(path, cached, scriptModules, modulesByPath, includes, 0) ||
+                !scriptModules.TryGetValue(path, out var restored))
             {
                 return null;
             }
 
-            path = file.Value.Path;
-            text = file.Value.Text;
+            return new LoadedScript(path, restored);
         }
 
-        if (!includes.TryImport())
+        if (!includes.TryDepth())
         {
             return null;
         }
 
-        var members = new SymbolList();
-        scriptModules[path] = members;
-        modulesByPath[path] = members;
-        FillModule(text, path, members, read, scriptModules, modulesByPath, lexer, token, includes);
-        includes.SetMembers(path, members);
-        return new LoadedScript(path, members);
+        try
+        {
+            if (text == null)
+            {
+                var file = read.Read(imported, documentPath);
+                if (file == null)
+                {
+                    return null;
+                }
+
+                path = file.Value.Path;
+                text = file.Value.Text;
+            }
+
+            if (!includes.TryImport())
+            {
+                return null;
+            }
+
+            var members = new SymbolList();
+            scriptModules[path] = members;
+            modulesByPath[path] = members;
+            FillModule(text, path, members, read, scriptModules, modulesByPath, lexer, token, includes);
+            includes.SetMembers(path, members);
+            return new LoadedScript(path, members);
+        }
+        finally
+        {
+            includes.LeaveDepth();
+        }
     }
 
-    private static void RestoreModule(string path, IReadOnlyList<Symbol> members,
+    private static bool RestoreModule(string path, IReadOnlyList<Symbol> members,
         Dictionary<string, IReadOnlyList<Symbol>> scriptModules, Dictionary<string, SymbolList> modulesByPath,
-        IncludeSession includes)
+        IncludeSession includes, int depth)
     {
-        if (modulesByPath.ContainsKey(path) || modulesByPath.Count >= IncludeCache.ImportDepthLimit)
+        if (modulesByPath.ContainsKey(path))
         {
-            return;
+            return true;
+        }
+
+        if (depth >= IncludeCache.ImportDepthLimit)
+        {
+            return false;
         }
 
         var copy = new SymbolList();
@@ -1475,9 +1500,11 @@ internal static class VapourSynthBinder
 
             if (includes.TryMembers(nested, out var child))
             {
-                RestoreModule(nested, child, scriptModules, modulesByPath, includes);
+                RestoreModule(nested, child, scriptModules, modulesByPath, includes, depth + 1);
             }
         }
+
+        return true;
     }
 
     private static bool ModuleComplete(string path, IncludeSession includes, CancellationToken token)
@@ -1489,7 +1516,7 @@ internal static class VapourSynthBinder
         }
 
         var walking = new HashSet<string>(StringComparer.Ordinal);
-        if (!WalkModule(path, includes, walking, token))
+        if (!WalkModule(path, includes, walking, token, 0))
         {
             return false;
         }
@@ -1503,12 +1530,12 @@ internal static class VapourSynthBinder
     }
 
     private static bool WalkModule(string path, IncludeSession includes, HashSet<string> walking,
-        CancellationToken token)
+        CancellationToken token, int depth)
     {
         token.ThrowIfCancellationRequested();
-        if (walking.Count >= IncludeCache.ImportDepthLimit)
+        if (depth >= IncludeCache.ImportDepthLimit)
         {
-            return true;
+            return false;
         }
 
         if (includes.Complete.Contains(path) || !walking.Add(path))
@@ -1531,7 +1558,7 @@ internal static class VapourSynthBinder
                 continue;
             }
 
-            if (!WalkModule(nested, includes, walking, token))
+            if (!WalkModule(nested, includes, walking, token, depth + 1))
             {
                 return false;
             }
@@ -1601,7 +1628,7 @@ internal static class VapourSynthBinder
                 var at = AfterKeyword(quoted, span.Start, span.End, "class");
                 if (TryIdent(quoted, ref at, span.End, out var name))
                 {
-                    ReplaceSymbol(members, new(name, []));
+                    ReplaceSymbol(members, new(name, null));
                 }
 
                 continue;

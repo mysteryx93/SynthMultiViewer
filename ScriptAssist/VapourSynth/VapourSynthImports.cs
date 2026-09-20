@@ -5,8 +5,17 @@ namespace HanumanInstitute.ScriptAssist.VapourSynth;
 /// </summary>
 public static class VapourSynthImports
 {
+    private static readonly LexerOptions Lexer = new()
+    {
+        HashLineComments = true,
+        SingleQuotes = true,
+        TripleQuotes = true,
+        StringEscapes = true,
+        PythonLineContinuations = true
+    };
+
     /// <summary>
-    /// Returns whether the buffer already has a column-0 <c>import module</c> (optional <c>as</c>).
+    /// Returns whether a column-0 <c>import</c> already binds <paramref name="module"/>.
     /// <c>from module import</c> does not count; that does not bind the module name.
     /// </summary>
     public static bool Contains(string text, string module)
@@ -16,11 +25,39 @@ public static class VapourSynthImports
             return false;
         }
 
-        foreach (var line in Lines(text ?? ""))
+        var prepared = PreparedDocument.Create(text ?? "", Lexer);
+        foreach (var span in prepared.Statements)
         {
-            if (LineImports(line.Text, module))
+            if (VapourSynthClassRanges.IndentAt(prepared.Masked.Code, span.Start) != 0)
             {
-                return true;
+                continue;
+            }
+
+            if (!VapourSynthBinder.Keyword(prepared.Quoted.Code, span.Start, span.End, "import"))
+            {
+                continue;
+            }
+
+            var list = prepared.Quoted.Code[VapourSynthBinder.AfterKeyword(prepared.Quoted.Code, span.Start, span.End,
+                "import")..span.End];
+            foreach (var part in ParameterNames.Split(list))
+            {
+                var spec = part.Trim();
+                if (spec.Length == 0)
+                {
+                    continue;
+                }
+
+                var aliased = ParameterNames.TryAlias(spec, out var imported, out var alias);
+                if (!aliased && imported.Contains('.', StringComparison.Ordinal))
+                {
+                    alias = imported[..imported.IndexOf('.')];
+                }
+
+                if (alias.Equals(module, StringComparison.Ordinal))
+                {
+                    return true;
+                }
             }
         }
 
@@ -28,18 +65,43 @@ public static class VapourSynthImports
     }
 
     /// <summary>
-    /// Offset after the last column-0 <c>import</c> / <c>from</c> line, or 0 when none exist.
+    /// Offset after the last complete column-0 header <c>import</c> / <c>from</c> statement, or 0.
     /// </summary>
     public static int InsertionOffset(string text)
     {
+        var prepared = PreparedDocument.Create(text ?? "", Lexer);
         var last = 0;
-        foreach (var line in Lines(text ?? ""))
+        foreach (var span in prepared.Statements)
         {
-            if (line.Text.StartsWith("import ", StringComparison.Ordinal) ||
-                line.Text.StartsWith("from ", StringComparison.Ordinal))
+            if (VapourSynthClassRanges.IndentAt(prepared.Masked.Code, span.Start) != 0)
             {
-                last = line.End;
+                if (Blank(prepared.Masked.Code, span))
+                {
+                    continue;
+                }
+
+                break;
             }
+
+            var quoted = prepared.Quoted.Code;
+            var header = VapourSynthBinder.Keyword(quoted, span.Start, span.End, "import") ||
+                VapourSynthBinder.Keyword(quoted, span.Start, span.End, "from");
+            if (!header)
+            {
+                if (Blank(prepared.Masked.Code, span))
+                {
+                    continue;
+                }
+
+                break;
+            }
+
+            if (Unclosed(prepared.Masked.Code, span))
+            {
+                break;
+            }
+
+            last = AfterStatement(text ?? "", span);
         }
 
         return last;
@@ -60,50 +122,51 @@ public static class VapourSynthImports
         return line;
     }
 
-    private static bool LineImports(ReadOnlySpan<char> line, string module)
+    private static bool Blank(string masked, StatementScanner.Span span)
     {
-        if (!line.StartsWith("import ", StringComparison.Ordinal))
+        for (var i = span.Start; i < span.End && i < masked.Length; i++)
         {
-            return false;
+            if (!char.IsWhiteSpace(masked[i]))
+            {
+                return false;
+            }
         }
 
-        var rest = line[7..];
-        while (rest.Length > 0 && rest[0] == ' ')
-        {
-            rest = rest[1..];
-        }
-
-        if (rest.Length < module.Length ||
-            !rest.StartsWith(module, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (rest.Length == module.Length)
-        {
-            return true;
-        }
-
-        var next = rest[module.Length];
-        return next is not (>= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '_');
+        return true;
     }
 
-    private static IEnumerable<(string Text, int End)> Lines(string text)
+    private static bool Unclosed(string masked, StatementScanner.Span span)
     {
-        var i = 0;
-        while (i < text.Length)
+        var depth = 0;
+        for (var i = span.Start; i < span.End && i < masked.Length; i++)
         {
-            var newline = text.IndexOf('\n', i);
-            var lineEnd = newline < 0 ? text.Length : newline;
-            var span = text.AsSpan(i, lineEnd - i);
-            if (span.Length > 0 && span[^1] == '\r')
+            var c = masked[i];
+            if (c is '(' or '[' or '{')
             {
-                span = span[..^1];
+                depth++;
             }
-
-            var end = newline < 0 ? text.Length : newline + 1;
-            yield return (span.ToString(), end);
-            i = end;
+            else if (c is ')' or ']' or '}' && depth > 0)
+            {
+                depth--;
+            }
         }
+
+        return depth > 0;
+    }
+
+    private static int AfterStatement(string text, StatementScanner.Span span)
+    {
+        var i = span.End;
+        if (i < text.Length && text[i] == '\r')
+        {
+            i++;
+        }
+
+        if (i < text.Length && text[i] == '\n')
+        {
+            i++;
+        }
+
+        return i;
     }
 }

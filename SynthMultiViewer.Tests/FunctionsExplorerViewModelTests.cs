@@ -257,7 +257,7 @@ public class FunctionsExplorerViewModelTests
     }
 
     [Fact]
-    public void Editor_Changed_BrowsesNewEditor()
+    public async Task Editor_Changed_BrowsesNewEditor()
     {
         var languages = new Mock<IScriptLanguageFactory>();
         languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), "first", It.IsAny<CancellationToken>(),
@@ -276,8 +276,84 @@ public class FunctionsExplorerViewModelTests
         model.Editor = new EditorViewModel { Script = "first" };
 
         model.Editor = new EditorViewModel { Script = "second" };
+        await model.ReloadAsync();
 
         Assert.Equal("resize", Assert.Single(model.Groups).Name);
         Assert.Equal("Bilinear", Assert.Single(model.Functions).Name);
+    }
+
+    [Fact]
+    public async Task Editor_ChangedWhileLoading_DisablesInsert()
+    {
+        var firstDone = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
+        var second = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), "first", It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .Returns(firstDone.Task);
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), "second", It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .Returns(second.Task);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object };
+        var firstEditor = new EditorViewModel { Script = "first" };
+        var secondEditor = new EditorViewModel { Script = "second" };
+        model.Editor = firstEditor;
+        firstDone.SetResult([new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])]);
+        await model.ReloadAsync();
+
+        model.Editor = secondEditor;
+
+        Assert.False(model.CanInsert);
+        second.SetResult([new BrowseGroup("resize",
+            [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")])]);
+        await model.ReloadAsync();
+        Assert.True(model.CanInsert);
+        Assert.Equal("Bilinear", model.SelectedFunction?.Name);
+    }
+
+    [Fact]
+    public async Task OnClosed_PendingBrowse_DiscardsResults()
+    {
+        var pending = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .Returns(pending.Task);
+        var model = new FunctionsExplorerViewModel
+        {
+            Languages = languages.Object,
+            Editor = new EditorViewModel { Script = "clip = " }
+        };
+        var reload = model.ReloadAsync();
+
+        model.OnClosed();
+        pending.SetResult([new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])]);
+        await reload;
+
+        Assert.Empty(model.Groups);
+        Assert.False(model.CanInsert);
+    }
+
+    [Fact]
+    public async Task Insert_UnimportedPackage_OneUndo()
+    {
+        const string script = "import vapoursynth as vs\nclip = ";
+        var editor = new EditorViewModel { Script = script };
+        editor.CaretOffset = editor.Script.Length;
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .ReturnsAsync(
+            [
+                new BrowseGroup("havsfunc",
+                    [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")])
+            ]);
+        var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
+        await model.ReloadAsync();
+        await model.Insert.Execute();
+
+        editor.Document.UndoStack.Undo();
+
+        Assert.Equal(script, editor.Script);
     }
 }

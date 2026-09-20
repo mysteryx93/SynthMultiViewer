@@ -13,6 +13,8 @@ internal sealed class IncludeCache
     private const int WorkingSetLimit = 8;
     private const long EntryByteLimit = 4 * 1024 * 1024;
     internal const int ImportDepthLimit = 128;
+    internal const int ImportWorkLimit = 256;
+    internal const string BrowseWorkingSet = "\0browse";
     private readonly Lock _gate = new();
     private int _version;
     private readonly Dictionary<(string Specifier, string? From), string?> _paths = [];
@@ -435,11 +437,13 @@ internal readonly struct IncludeSession
         Entries = new(StringComparer.Ordinal);
         Paths = [];
         Work = new();
+        Depth = new();
     }
 
     public IncludeCache? Cache { get; }
     public int Version { get; }
     private Counter Work { get; }
+    private Counter Depth { get; }
 
     /// <summary>
     /// Paths whose cached graphs were already verified complete during this bind.
@@ -527,13 +531,32 @@ internal readonly struct IncludeSession
 
     public bool TryImport()
     {
-        if (Work.Value >= IncludeCache.ImportDepthLimit)
+        if (Work.Value >= IncludeCache.ImportWorkLimit)
         {
             return false;
         }
 
         Work.Value++;
         return true;
+    }
+
+    public bool TryDepth()
+    {
+        if (Depth.Value >= IncludeCache.ImportDepthLimit)
+        {
+            return false;
+        }
+
+        Depth.Value++;
+        return true;
+    }
+
+    public void LeaveDepth()
+    {
+        if (Depth.Value > 0)
+        {
+            Depth.Value--;
+        }
     }
 
     private static IReadOnlyList<Symbol> Copy(IReadOnlyList<Symbol> members) =>

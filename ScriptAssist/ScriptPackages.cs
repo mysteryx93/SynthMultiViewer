@@ -62,18 +62,27 @@ public static class ScriptPackages
 
     private static void TryAddDistribution(string directory, SortedSet<string> names, IFileSystemService files)
     {
-        if (NativeOnly(files, directory))
-        {
-            return;
-        }
-
         var metadata = files.Path.Combine(directory, "METADATA");
         if (!FileExists(files, metadata))
         {
             metadata = files.Path.Combine(directory, "PKG-INFO");
         }
 
-        TryAddMetadata(metadata, names, files);
+        var text = TryRead(files, metadata);
+        if (text == null || !TryPackage(text, out var distribution))
+        {
+            return;
+        }
+
+        if (NativeOnly(files, directory))
+        {
+            return;
+        }
+
+        foreach (var name in ImportNames(directory, distribution, files))
+        {
+            names.Add(name);
+        }
     }
 
     private static void TryAddMetadata(string path, SortedSet<string> names, IFileSystemService files)
@@ -84,7 +93,7 @@ public static class ScriptPackages
             return;
         }
 
-        names.Add(name);
+        names.Add(ImportName(name));
     }
 
     private static void TryAddLoose(string path, SortedSet<string> names, IFileSystemService files)
@@ -118,7 +127,7 @@ public static class ScriptPackages
             var line = raw.TrimEnd('\r');
             if (line.StartsWith("Name:", StringComparison.OrdinalIgnoreCase))
             {
-                name = ImportName(line[5..].Trim());
+                name = line[5..].Trim();
             }
             else if (line.StartsWith("Requires-Dist:", StringComparison.OrdinalIgnoreCase) &&
                 DependencyName(line[14..]).Equals("vapoursynth", StringComparison.OrdinalIgnoreCase))
@@ -132,7 +141,95 @@ public static class ScriptPackages
             return false;
         }
 
-        return KnownSet.Contains(name) || requiresVapourSynth;
+        return KnownSet.Contains(name) || KnownSet.Contains(ImportName(name)) || requiresVapourSynth;
+    }
+
+    private static IReadOnlyList<string> ImportNames(string directory, string distribution, IFileSystemService files)
+    {
+        var top = TryRead(files, files.Path.Combine(directory, "top_level.txt"));
+        if (top != null)
+        {
+            var fromTop = new List<string>();
+            foreach (var raw in top.Split('\n'))
+            {
+                var line = raw.Trim().TrimEnd('\r');
+                if (!line.HasText() || line[0] == '#')
+                {
+                    continue;
+                }
+
+                var module = line.Replace('\\', '/');
+                var slash = module.IndexOf('/');
+                if (slash >= 0)
+                {
+                    module = module[..slash];
+                }
+
+                if (module.HasText() && !module.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase))
+                {
+                    fromTop.Add(module);
+                }
+            }
+
+            if (fromTop.Count > 0)
+            {
+                return fromTop;
+            }
+        }
+
+        var fromRecord = RecordModules(files, directory);
+        if (fromRecord.Count > 0)
+        {
+            return fromRecord;
+        }
+
+        var fallback = ImportName(distribution);
+        return fallback.HasText() ? [fallback] : [];
+    }
+
+    private static IReadOnlyList<string> RecordModules(IFileSystemService files, string directory)
+    {
+        var record = TryRead(files, files.Path.Combine(directory, "RECORD"));
+        if (record == null)
+        {
+            return [];
+        }
+
+        var modules = new List<string>();
+        foreach (var raw in record.Split('\n'))
+        {
+            if (modules.Count >= 8)
+            {
+                break;
+            }
+
+            var path = raw.Split(',')[0].Trim().Replace('\\', '/');
+            if (path.Length == 0 || path.StartsWith("..", StringComparison.Ordinal) ||
+                !path.EndsWith(".py", StringComparison.OrdinalIgnoreCase) &&
+                !path.EndsWith(".pyi", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var slash = path.IndexOf('/');
+            var module = slash < 0
+                ? files.GetPathWithoutExtension(path)
+                : path[..slash];
+            if (module.EndsWith(".dist-info", StringComparison.OrdinalIgnoreCase) ||
+                module.EndsWith(".egg-info", StringComparison.OrdinalIgnoreCase) ||
+                module.Equals("vapoursynth", StringComparison.OrdinalIgnoreCase) ||
+                !module.HasText())
+            {
+                continue;
+            }
+
+            if (!modules.Contains(module, StringComparer.Ordinal))
+            {
+                modules.Add(module);
+            }
+        }
+
+        return modules;
     }
 
     private static string ImportName(string name) => name.Replace('-', '_');
@@ -143,7 +240,7 @@ public static class ScriptPackages
         var end = text.Length;
         for (var i = 0; i < text.Length; i++)
         {
-            if (text[i] is ' ' or ';' or '[' or '(')
+            if (text[i] is ' ' or ';' or '[' or '(' or '<' or '>' or '=' or '!' or '~')
             {
                 end = i;
                 break;
@@ -197,11 +294,11 @@ public static class ScriptPackages
         }
     }
 
-    private static IEnumerable<string> Directories(IFileSystemService files, string root)
+    private static IReadOnlyList<string> Directories(IFileSystemService files, string root)
     {
         try
         {
-            return files.Directory.EnumerateDirectories(root);
+            return [..files.Directory.EnumerateDirectories(root)];
         }
         catch (System.IO.IOException)
         {
@@ -213,11 +310,11 @@ public static class ScriptPackages
         }
     }
 
-    private static IEnumerable<string> Files(IFileSystemService files, string root, string pattern)
+    private static IReadOnlyList<string> Files(IFileSystemService files, string root, string pattern)
     {
         try
         {
-            return files.Directory.EnumerateFiles(root, pattern);
+            return [..files.Directory.EnumerateFiles(root, pattern)];
         }
         catch (System.IO.IOException)
         {
