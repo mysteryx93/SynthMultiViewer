@@ -28,4 +28,12 @@ public interface IScriptLanguageFactory
     /// <see cref="IsEnabled"/> is false.
     /// </summary>
     void Refresh();
+
+    /// <summary>
+    /// Builds explorer groups for <paramref name="language"/>. Works while
+    /// <see cref="IsEnabled"/> is false; <see cref="Create"/> still returns null.
+    /// </summary>
+    Task<IReadOnlyList<BrowseGroup>> BrowseAsync(string language, string text,
+        CancellationToken cancellationToken, string? documentPath = null,
+        IReadOnlyList<string>? extraPackages = null);
 }

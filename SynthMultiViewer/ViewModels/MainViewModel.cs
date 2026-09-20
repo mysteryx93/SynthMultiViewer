@@ -33,6 +33,8 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     private IScriptViewModel? _previousItem;
     private VideoPropertiesViewModel? _properties;
     private readonly VideoPropertiesPlacement _propertiesPlacement = new();
+    private FunctionsExplorerViewModel? _explorer;
+    private readonly FunctionsExplorerPlacement _explorerPlacement = new();
     private readonly HashSet<IScriptViewModel> _closing = [];
     private bool _loaded;
 
@@ -90,6 +92,8 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
             .Subscribe(OnSelectedItemChanged);
         this.WhenAnyValue(x => x.IsPropertiesOpen)
             .Subscribe(OnPropertiesOpenChanged);
+        this.WhenAnyValue(x => x.IsFunctionsExplorerOpen)
+            .Subscribe(OnFunctionsExplorerOpenChanged);
     }
 
     /// <summary>
@@ -188,6 +192,12 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     public partial bool IsPropertiesOpen { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the functions explorer window is open.
+    /// </summary>
+    [Reactive]
+    public partial bool IsFunctionsExplorerOpen { get; set; }
+
+    /// <summary>
     /// Gets the requested worker count; one when multi-threading is off.
     /// </summary>
     public int Threads
@@ -258,6 +268,11 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     /// Toggles the modeless video properties window.
     /// </summary>
     public RxCommandVoid Properties => field ??= ReactiveCommand.Create(PropertiesImpl, WhenViewerSelected);
+    /// <summary>
+    /// Toggles the modeless functions explorer window.
+    /// </summary>
+    public RxCommandVoid FunctionsExplorer =>
+        field ??= ReactiveCommand.Create(FunctionsExplorerImpl, WhenEditorSelected);
     /// <summary>
     /// Moves the selected viewer by the supplied frame count.
     /// </summary>
@@ -379,6 +394,19 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
         {
             _properties.Viewer = value as IViewerViewModel;
         }
+
+        if (_explorer == null)
+        {
+            return;
+        }
+
+        if (value is IEditorViewModel editor)
+        {
+            _explorer.Editor = editor;
+            return;
+        }
+
+        IsFunctionsExplorerOpen = false;
     }
 
     private void NewImpl() => AddEditor(_defaultScripts.VapourSynth, ScriptKind.VapourSynth);
@@ -503,6 +531,83 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     }
 
     private void PropertiesImpl() => IsPropertiesOpen = !IsPropertiesOpen;
+
+    private void FunctionsExplorerImpl() => IsFunctionsExplorerOpen = !IsFunctionsExplorerOpen;
+
+    private void OnFunctionsExplorerOpenChanged(bool open)
+    {
+        if (open)
+        {
+            OpenFunctionsExplorerWindow();
+            return;
+        }
+
+        CloseFunctionsExplorerWindow();
+    }
+
+    private void OpenFunctionsExplorerWindow()
+    {
+        if (_explorer != null)
+        {
+            _explorer.Editor = SelectedItem as IEditorViewModel;
+            _dialogService.Activate(_explorer);
+            return;
+        }
+
+        _explorer = _dialogService.CreateViewModel<FunctionsExplorerViewModel>();
+        _explorer.Placement = _explorerPlacement;
+        _explorer.Editor = SelectedItem as IEditorViewModel;
+        ApplyExplorerDefaultPlacement();
+        _explorer.RequestClose += FunctionsExplorerOnRequestClose;
+        _dialogService.Show(this, _explorer);
+    }
+
+    private void ApplyExplorerDefaultPlacement()
+    {
+        if (_explorerPlacement.Left is not null || _explorerPlacement.Top is not null)
+        {
+            return;
+        }
+
+        if (_dialogService.DialogManager.FindViewByViewModel(this)?.RefObj is not Window owner)
+        {
+            return;
+        }
+
+        var position = VideoPropertiesPlacement.AlignToOwnerRight(
+            owner.Position, VideoPropertiesPlacement.OwnerFrameSize(owner),
+            VideoPropertiesPlacement.ChildFrameSize(
+                owner, _explorerPlacement.Width, _explorerPlacement.Height));
+        _explorerPlacement.Left = position.X;
+        _explorerPlacement.Top = position.Y;
+    }
+
+    private void CloseFunctionsExplorerWindow()
+    {
+        if (_explorer == null)
+        {
+            return;
+        }
+
+        var explorer = _explorer;
+        explorer.RequestClose -= FunctionsExplorerOnRequestClose;
+        _dialogService.Close(explorer);
+        explorer.Editor = null;
+        _explorer = null;
+    }
+
+    private void FunctionsExplorerOnRequestClose(object? sender, EventArgs e)
+    {
+        if (_explorer == null)
+        {
+            return;
+        }
+
+        _explorer.RequestClose -= FunctionsExplorerOnRequestClose;
+        _explorer.Editor = null;
+        _explorer = null;
+        IsFunctionsExplorerOpen = false;
+    }
 
     private void OnPropertiesOpenChanged(bool open)
     {
@@ -753,6 +858,7 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     public void OnClosed()
     {
         IsPropertiesOpen = false;
+        IsFunctionsExplorerOpen = false;
         _settings.Save();
     }
 

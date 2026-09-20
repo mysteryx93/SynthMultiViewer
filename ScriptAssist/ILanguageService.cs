@@ -14,4 +14,11 @@ public interface ILanguageService
     /// Drops cached document analysis so the next request rebinds includes and assignments.
     /// </summary>
     void Invalidate();
+
+    /// <summary>
+    /// Builds explorer groups from the catalog and the same snapshot <see cref="GetAsync"/> uses.
+    /// Does not load unimported packages into completion.
+    /// </summary>
+    Task<IReadOnlyList<BrowseGroup>> BrowseAsync(string text, CancellationToken cancellationToken,
+        string? documentPath = null, IReadOnlyList<string>? extraPackages = null);
 }

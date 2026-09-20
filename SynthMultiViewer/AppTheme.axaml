@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:edit="using:AvaloniaEdit"
         xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
+        xmlns:h="using:HanumanInstitute.SynthMultiViewer.Helpers"
         xmlns:i="using:Avalonia.Xaml.Interactivity"
         xmlns:drag="using:Avalonia.Xaml.Interactions.Draggable">
 
@@ -31,6 +32,7 @@
                 <Setter Property="Padding" Value="12,0" />
                 <Setter Property="Margin" Value="0" />
                 <Setter Property="MinHeight" Value="40" />
+                <Setter Property="IsTabStop" Value="False" />
                 <Setter Property="VerticalContentAlignment" Value="Center" />
                 <Setter Property="Template">
                     <ControlTemplate>
@@ -113,6 +115,31 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="CornerRadius" Value="3" />
     </Style>
+    <Style Selector="StackPanel.start-tiles">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="16" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.start-tile">
+        <Setter Property="Width" Value="132" />
+        <Setter Property="Height" Value="132" />
+        <Setter Property="MinWidth" Value="132" />
+        <Setter Property="MinHeight" Value="132" />
+        <Setter Property="Padding" Value="12,14" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Button.start-tile Image">
+        <Setter Property="Width" Value="56" />
+        <Setter Property="Height" Value="56" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.start-tile TextBlock">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
     <Style Selector="ComboBox">
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="Padding" Value="10,0,0,0" />
@@ -124,11 +151,68 @@
         <Setter Property="Padding" Value="10,0,4,0" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
+    <Style Selector="ListBox.compact">
+        <Setter Property="AutoScrollToSelectedItem" Value="True" />
+        <Setter Property="IsTextSearchEnabled" Value="False" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="h:ListBoxTextSearch.Enabled" Value="True" />
+        <Setter Property="FocusAdorner">
+            <FocusAdornerTemplate>
+                <Border Margin="0,0,14,0" BorderThickness="2"
+                        BorderBrush="{DynamicResource SystemControlFocusVisualPrimaryBrush}"
+                        IsHitTestVisible="False" />
+            </FocusAdornerTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ListBox.compact ListBoxItem">
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MaxHeight" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,14,0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        <Setter Property="FocusAdorner">
+            <FocusAdornerTemplate>
+                <Border BorderThickness="2"
+                        BorderBrush="{DynamicResource SystemControlFocusVisualPrimaryBrush}"
+                        IsHitTestVisible="False" />
+            </FocusAdornerTemplate>
+        </Setter>
+    </Style>
     <Style Selector="TextBox">
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="Height" Value="28" />
         <Setter Property="Padding" Value="8,0,6,0" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox.search">
+        <Setter Property="Padding" Value="8,0,28,0" />
+    </Style>
+    <Style Selector="Button.clear-search">
+        <Setter Property="Width" Value="22" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="MinWidth" Value="22" />
+        <Setter Property="MinHeight" Value="22" />
+        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.clear-search Path">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Height" Value="8" />
+        <Setter Property="Stretch" Value="Uniform" />
+        <Setter Property="StrokeThickness" Value="1.25" />
+        <Setter Property="StrokeLineCap" Value="Round" />
+        <Setter Property="StrokeJoin" Value="Round" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Stroke" Value="{Binding $parent[Button].Foreground}" />
     </Style>
     <Style Selector="HyperlinkButton">
         <Setter Property="Padding" Value="0" />
@@ -176,6 +260,7 @@
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="IsTabStop" Value="False" />
     </Style>
     <Style Selector="StackPanel.toolbar > Button:pointerover /template/ ContentPresenter#PART_ContentPresenter,
                      StackPanel.toolbar > ToggleButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
@@ -236,6 +321,8 @@
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}"
@@ -280,6 +367,7 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="FontSize" Value="13" />
+        <Setter Property="IsTabStop" Value="False" />
     </Style>
     <Style Selector="ComboBox.zoom:pressed /template/ Border#Background">
         <Setter Property="Background" Value="{DynamicResource ComboBoxBackground}" />
@@ -322,6 +410,7 @@
         <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="FontSize" Value="13" />
+        <Setter Property="IsTabStop" Value="False" />
     </Style>
     <Style Selector="ComboBox.zoom /template/ TextBox#PART_EditableTextBox /template/ Border#PART_BorderElement">
         <Setter Property="BorderThickness" Value="0" />

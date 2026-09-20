@@ -70,6 +70,76 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
     public string? ParameterName(string parameter) => ParameterNames.OfAviSynth(parameter);
 
     /// <inheritdoc />
+    public IReadOnlyList<BrowseGroup> Browse(IReadOnlyList<Symbol> catalog, DocumentBindings bindings, string text,
+        CancellationToken token = default, string? documentPath = null,
+        IReadOnlyList<string>? extraPackages = null)
+    {
+        var internalFunctions = new List<BrowseFunction>();
+        var plugin = new List<BrowseFunction>();
+        var autoload = new List<BrowseFunction>();
+        foreach (var symbol in catalog)
+        {
+            token.ThrowIfCancellationRequested();
+            if (symbol.Kind != SymbolKind.Function)
+            {
+                continue;
+            }
+
+            var item = new BrowseFunction(symbol.DisplayName, symbol.Signature, symbol.DisplayName + "()");
+            if (symbol.Group == "Internal")
+            {
+                internalFunctions.Add(item);
+            }
+            else if (symbol.Group == "Plugin")
+            {
+                plugin.Add(item);
+            }
+            else
+            {
+                autoload.Add(item);
+            }
+        }
+
+        internalFunctions.Sort(CompareFunctions);
+        plugin.Sort(CompareFunctions);
+        autoload.Sort(CompareFunctions);
+        var groups = new List<BrowseGroup>();
+        Add(groups, "This file", Calls(AviSynthFunctions.Parse(text, Lexer, token)));
+        Add(groups, "Internal", internalFunctions);
+        Add(groups, "Plugin", plugin);
+        Add(groups, "Autoload", autoload);
+        return groups;
+    }
+
+    private static void Add(List<BrowseGroup> groups, string name, IReadOnlyList<BrowseFunction> functions)
+    {
+        if (functions.Count > 0)
+        {
+            groups.Add(new(name, functions));
+        }
+    }
+
+    private static IReadOnlyList<BrowseFunction> Calls(IReadOnlyList<Symbol> symbols)
+    {
+        var items = new List<BrowseFunction>(symbols.Count);
+        foreach (var symbol in symbols)
+        {
+            if (symbol.Kind != SymbolKind.Function)
+            {
+                continue;
+            }
+
+            items.Add(new(symbol.DisplayName, symbol.Signature, symbol.DisplayName + "()"));
+        }
+
+        items.Sort(CompareFunctions);
+        return items;
+    }
+
+    private static int CompareFunctions(BrowseFunction left, BrowseFunction right) =>
+        string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+
+    /// <inheritdoc />
     public TypeRef TypeOf(IReadOnlyList<PathSegment> segments, DocumentBindings bindings, IReadOnlyList<Symbol> catalog) =>
         AviSynthTypeWalker.TypeOf(segments, bindings, catalog);
 

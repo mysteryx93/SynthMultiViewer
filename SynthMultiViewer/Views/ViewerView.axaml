@@ -6,8 +6,11 @@
              xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
              x:Class="HanumanInstitute.SynthMultiViewer.Views.ViewerView"
              x:DataType="vm:ViewerViewModel"
-             x:Name="Root">
+             x:Name="Root"
+             Focusable="True"
+             h:FocusBehavior.WhenVisible="True">
     <media:MediaPlayer x:Name="Player" Theme="{DynamicResource ViewerPlayer}"
+                       Focusable="False" IsTabStop="False"
                        IsVolumeVisible="False" IsSpeedVisible="False" IsStopVisible="False"
                        IsLoopVisible="False" ChangeVolumeOnMouseWheel="False" PositionDisplay="Seconds">
         <vs:SynthPlayerHost

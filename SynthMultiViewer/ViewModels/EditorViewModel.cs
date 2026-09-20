@@ -23,6 +23,18 @@ public interface IEditorViewModel : IScriptViewModel
     /// Marks the current text as saved.
     /// </summary>
     void MarkSaved();
+    /// <summary>
+    /// Gets or sets the caret offset in <see cref="Script"/>.
+    /// </summary>
+    int CaretOffset { get; set; }
+    /// <summary>
+    /// Inserts <paramref name="text"/> at <paramref name="offset"/> and shifts the caret when it is at or after that point.
+    /// </summary>
+    void Insert(int offset, string text);
+    /// <summary>
+    /// Inserts <paramref name="text"/> at <see cref="CaretOffset"/> and moves the caret to the end of the insert.
+    /// </summary>
+    void InsertAtCaret(string text);
 }
 
 /// <summary>
@@ -72,6 +84,26 @@ public partial class EditorViewModel : ScriptViewModel, IEditorViewModel
 
     /// <inheritdoc />
     public void MarkSaved() => Document.UndoStack.MarkAsOriginalFile();
+
+    /// <inheritdoc />
+    [Reactive]
+    public partial int CaretOffset { get; set; }
+
+    /// <inheritdoc />
+    public void Insert(int offset, string text)
+    {
+        var value = text ?? "";
+        offset = offset.Clamp(0, Document.TextLength);
+        var caret = CaretOffset.Clamp(0, Document.TextLength);
+        var anchor = Document.CreateAnchor(caret);
+        anchor.MovementType = AnchorMovementType.AfterInsertion;
+        Document.Insert(offset, value);
+        CaretOffset = anchor.Offset;
+        this.RaisePropertyChanged(nameof(Script));
+    }
+
+    /// <inheritdoc />
+    public void InsertAtCaret(string text) => Insert(CaretOffset, text);
 
     /// <summary>
     /// Gets the syntax highlighting asset for the current script kind.

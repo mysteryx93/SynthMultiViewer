@@ -8,6 +8,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using AvaloniaEdit;
+using HanumanInstitute.MediaSynthUI;
 
 namespace HanumanInstitute.SynthMultiViewer.Helpers;
 
@@ -202,10 +204,9 @@ public static class ComboBoxCommit
             // content is outside the combo's visual subtree (including overlay popups).
             if (_popup?.Child is { } child && (source == child || child.IsVisualAncestorOf(source))) { return; }
 
-            // Commit before the clicked control handles its action and takes focus.
             Commit();
             _combo.SetCurrentValue(ComboBox.IsDropDownOpenProperty, false);
-            _root?.FocusManager?.Focus(null);
+            FocusWorkspace();
         }
 
         private void OnKeyDown(object? sender, KeyEventArgs e)
@@ -220,8 +221,36 @@ public static class ComboBoxCommit
             {
                 RestoreText();
             }
-            _root?.FocusManager?.Focus(null);
+            FocusWorkspace();
             e.Handled = true;
+        }
+
+        private void FocusWorkspace()
+        {
+            if (_root is not Visual root)
+            {
+                _root?.FocusManager?.Focus(null);
+                return;
+            }
+
+            foreach (var zoom in root.GetVisualDescendants().OfType<ZoomViewer>())
+            {
+                if (zoom.IsEffectivelyVisible && zoom.Focus())
+                {
+                    return;
+                }
+            }
+
+            foreach (var editor in root.GetVisualDescendants().OfType<TextEditor>())
+            {
+                if (editor.IsEffectivelyVisible)
+                {
+                    editor.TextArea.Focus();
+                    return;
+                }
+            }
+
+            _root.FocusManager?.Focus(null);
         }
 
         private void OnLostFocus(object? sender, RoutedEventArgs e)

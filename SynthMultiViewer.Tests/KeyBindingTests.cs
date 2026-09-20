@@ -384,6 +384,10 @@ public class KeyBindingTests
         public ILanguageService? Create(string language) => IsEnabled ? _service : null;
         public void Configure(string language, string catalogKey) { }
         public void Refresh() => RefreshCount++;
+        public Task<IReadOnlyList<BrowseGroup>> BrowseAsync(string language, string text,
+            CancellationToken cancellationToken, string? documentPath = null,
+            IReadOnlyList<string>? extraPackages = null) =>
+            _service.BrowseAsync(text, cancellationToken, documentPath, extraPackages);
     }
 
     private sealed class RecordingDialogs : DialogManager

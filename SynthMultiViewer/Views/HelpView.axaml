@@ -65,6 +65,7 @@
                         <Run Text="Ctrl+Space: Completion" /><LineBreak />
                         <Run Text="Ctrl+Shift+Space: Parameter info" /><LineBreak />
                         <Run Text="Ctrl+Shift+R: Refresh catalogs" /><LineBreak />
+                        <Run Text="Ctrl+E: Functions explorer" /><LineBreak />
                         <Run Text="Esc: Dismiss popups" />
                     </TextBlock>
                     <TextBlock FontWeight="SemiBold" Text="Viewer" />

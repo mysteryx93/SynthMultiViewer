@@ -75,6 +75,57 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
     public string? ParameterName(string parameter) => ParameterNames.OfPython(parameter);
 
     /// <inheritdoc />
+    public IReadOnlyList<BrowseGroup> Browse(IReadOnlyList<Symbol> catalog, DocumentBindings bindings, string text,
+        CancellationToken token = default, string? documentPath = null,
+        IReadOnlyList<string>? extraPackages = null)
+    {
+        var groups = new List<BrowseGroup>();
+        var index = VapourSynthCatalogIndex.Build(catalog);
+        foreach (var ns in index.Namespaces)
+        {
+            token.ThrowIfCancellationRequested();
+            var functions = Calls(index.Functions(ns.Name, false), ns.Name);
+            if (functions.Count > 0)
+            {
+                groups.Add(new(ns.Name, functions));
+            }
+        }
+
+        var imported = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var pair in bindings.Names)
+        {
+            token.ThrowIfCancellationRequested();
+            if (pair.Key is "vs" or "vapoursynth")
+            {
+                continue;
+            }
+
+            var script = VapourSynthTypes.ScriptOf(pair.Value);
+            if (script == null || !imported.Add(script) ||
+                !bindings.ScriptModules.TryGetValue(script, out var members))
+            {
+                continue;
+            }
+
+            var functions = Calls(members, null);
+            if (functions.Count > 0)
+            {
+                groups.Add(new(pair.Key, functions));
+            }
+        }
+
+        AddInstalled(groups, bindings, imported, token, documentPath, extraPackages);
+        var local = Calls(bindings.BufferSymbols, null);
+        if (local.Count > 0)
+        {
+            groups.Add(new("This file", local));
+        }
+
+        groups.Sort(CompareGroups);
+        return groups;
+    }
+
+    /// <inheritdoc />
     public TypeRef TypeOf(IReadOnlyList<PathSegment> segments, DocumentBindings bindings, IReadOnlyList<Symbol> catalog) =>
         VapourSynthTypeWalker.TypeOf(segments, bindings, VapourSynthCatalogIndex.Build(catalog));
 
@@ -296,6 +347,105 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
 
         return false;
     }
+
+    private void AddInstalled(List<BrowseGroup> groups, DocumentBindings bindings, HashSet<string> imported,
+        CancellationToken token, string? documentPath, IReadOnlyList<string>? extraPackages)
+    {
+        if (_read == null)
+        {
+            return;
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var pair in bindings.Names)
+        {
+            if (VapourSynthTypes.ScriptOf(pair.Value) != null)
+            {
+                seen.Add(pair.Key);
+            }
+        }
+
+        foreach (var name in Packages(extraPackages))
+        {
+            token.ThrowIfCancellationRequested();
+            if (name is "vs" or "vapoursynth" || !seen.Add(name))
+            {
+                continue;
+            }
+
+            var loaded = VapourSynthBinder.LoadPackage(name, documentPath, _read, Lexer, token, Includes);
+            if (loaded == null || imported.Contains(loaded.Value.Id) || loaded.Value.Members.Count == 0)
+            {
+                continue;
+            }
+
+            imported.Add(loaded.Value.Id);
+            var functions = Calls(loaded.Value.Members, import: name);
+            if (functions.Count > 0)
+            {
+                groups.Add(new(name, functions));
+            }
+        }
+    }
+
+    private static IEnumerable<string> Packages(IReadOnlyList<string>? extraPackages)
+    {
+        foreach (var name in ScriptPackages.Known)
+        {
+            yield return name;
+        }
+
+        if (extraPackages == null)
+        {
+            yield break;
+        }
+
+        foreach (var name in extraPackages)
+        {
+            if (name.HasText())
+            {
+                yield return name;
+            }
+        }
+    }
+
+    private static IReadOnlyList<BrowseFunction> Calls(IReadOnlyList<Symbol> symbols, string? ns = null,
+        string? import = null)
+    {
+        var items = new List<BrowseFunction>();
+        foreach (var symbol in symbols)
+        {
+            if (symbol.Kind != SymbolKind.Function)
+            {
+                continue;
+            }
+
+            var shown = VapourSynthTypes.ForDisplay(symbol);
+            var name = shown.DisplayName;
+            var insert = import != null ? import + "." + name + "()"
+                : ns == null ? name + "()"
+                : "core." + ns + "." + name + "()";
+            items.Add(new(name, shown.Signature, insert, import));
+        }
+
+        items.Sort(CompareFunctions);
+        return items;
+    }
+
+    private static int CompareGroups(BrowseGroup left, BrowseGroup right)
+    {
+        var leftLocal = left.Name == "This file";
+        var rightLocal = right.Name == "This file";
+        if (leftLocal != rightLocal)
+        {
+            return leftLocal ? -1 : 1;
+        }
+
+        return string.Compare(left.Name, right.Name, StringComparison.Ordinal);
+    }
+
+    private static int CompareFunctions(BrowseFunction left, BrowseFunction right) =>
+        string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<PathSegment> WithName(IReadOnlyList<PathSegment> prefix, string name)
     {

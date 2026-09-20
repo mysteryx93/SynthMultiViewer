@@ -461,6 +461,10 @@ public class EditorCompletionTests
             return Reply.Task;
         }
 
+        public Task<IReadOnlyList<BrowseGroup>> BrowseAsync(string text, CancellationToken cancellationToken,
+            string? documentPath = null, IReadOnlyList<string>? extraPackages = null) =>
+            Task.FromResult<IReadOnlyList<BrowseGroup>>([]);
+
         public void Invalidate()
         {
         }

@@ -24,11 +24,25 @@ public partial class BindableTextEditor : TextEditor
             defaultBindingMode: BindingMode.TwoWay);
 
     /// <summary>
+    /// Defines the caret offset bound to the editor view-model.
+    /// </summary>
+    public static readonly StyledProperty<int> BindableCaretOffsetProperty =
+        AvaloniaProperty.Register<BindableTextEditor, int>(nameof(BindableCaretOffset),
+            defaultBindingMode: BindingMode.TwoWay);
+
+    /// <summary>
     /// Creates an editor that keeps <see cref="TextEditor.Document"/> as the live buffer.
     /// </summary>
     public BindableTextEditor()
     {
         InitializeCompletion();
+        TextArea.Caret.PositionChanged += (_, _) =>
+        {
+            if (BindableCaretOffset != CaretOffset)
+            {
+                SetCurrentValue(BindableCaretOffsetProperty, CaretOffset);
+            }
+        };
     }
 
     /// <inheritdoc />
@@ -79,6 +93,15 @@ public partial class BindableTextEditor : TextEditor
         set => SetValue(ScriptTextProperty, value);
     }
 
+    /// <summary>
+    /// Gets or sets the caret offset synchronized with the view-model.
+    /// </summary>
+    public int BindableCaretOffset
+    {
+        get => GetValue(BindableCaretOffsetProperty);
+        set => SetValue(BindableCaretOffsetProperty, value);
+    }
+
     /// <inheritdoc />
     protected override Type StyleKeyOverride => typeof(TextEditor);
 
@@ -89,6 +112,15 @@ public partial class BindableTextEditor : TextEditor
         if (change.Property == ScriptTextProperty && Text != ScriptText)
         {
             Text = ScriptText ?? string.Empty;
+        }
+
+        if (change.Property == BindableCaretOffsetProperty)
+        {
+            var offset = BindableCaretOffset.Clamp(0, Document?.TextLength ?? 0);
+            if (CaretOffset != offset)
+            {
+                CaretOffset = offset;
+            }
         }
     }
 }

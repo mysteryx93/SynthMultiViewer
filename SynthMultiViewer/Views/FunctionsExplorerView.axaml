@@ -1,0 +1,98 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:h="using:HanumanInstitute.SynthMultiViewer.Helpers"
+        xmlns:sa="using:HanumanInstitute.ScriptAssist"
+        xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
+        x:Class="HanumanInstitute.SynthMultiViewer.Views.FunctionsExplorerView"
+        x:DataType="vm:FunctionsExplorerViewModel"
+        Title="{Binding DisplayName}"
+        Width="{Binding Placement.Width, Mode=TwoWay}"
+        Height="{Binding Placement.Height, Mode=TwoWay}"
+        MinWidth="360" MinHeight="240"
+        h:WindowBounds.Left="{Binding Placement.Left, Mode=TwoWay}"
+        h:WindowBounds.Top="{Binding Placement.Top, Mode=TwoWay}"
+        CanResize="True" CanMaximize="False" CanMinimize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="Manual">
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+E" Command="{Binding Close}" />
+    </Window.KeyBindings>
+    <DockPanel Classes="dialog-content">
+        <StackPanel DockPanel.Dock="Bottom" Classes="dialog-actions">
+            <Button Content="Refresh" Command="{Binding Refresh}" />
+            <Button Content="Insert" IsDefault="True" Command="{Binding Insert}"
+                    IsEnabled="{Binding CanInsert}" />
+            <Button Content="Close" Command="{Binding Close}" />
+        </StackPanel>
+        <DockPanel>
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
+                <TextBox x:Name="Search" Classes="search" PlaceholderText="Search"
+                         h:FocusBehavior.WhenVisible="True"
+                         Text="{Binding Filter, Mode=TwoWay}" />
+                <Button Classes="clear-search" Command="{Binding ClearFilter}"
+                        IsVisible="{Binding IsSearching}" ToolTip.Tip="Clear search"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Path Data="M 0,0 L 8,8 M 8,0 L 0,8" />
+                </Button>
+            </Grid>
+            <Grid>
+                <Grid ColumnDefinitions="160,*" ColumnSpacing="8" IsVisible="{Binding !IsSearching}">
+                    <ListBox Classes="compact" ItemsSource="{Binding Groups}"
+                             SelectedItem="{Binding SelectedGroup}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="sa:BrowseGroup">
+                                <Border Background="Transparent" Padding="10,0,8,0"
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <ListBox Grid.Column="1" Classes="compact" ItemsSource="{Binding Functions}"
+                             SelectedItem="{Binding SelectedFunction}"
+                             DoubleTapped="OnFunctionDoubleTapped">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="sa:BrowseFunction">
+                                <Border Background="Transparent" Padding="10,0,8,0"
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <ToolTip.Tip>
+                                        <ToolTip MaxWidth="960">
+                                            <TextBlock Text="{Binding Signature}" TextWrapping="Wrap"
+                                                       MaxWidth="960" MaxLines="16"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </ToolTip>
+                                    </ToolTip.Tip>
+                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+                <ListBox Classes="compact" IsVisible="{Binding IsSearching}"
+                         ItemsSource="{Binding Hits}" SelectedItem="{Binding SelectedHit}"
+                         DoubleTapped="OnFunctionDoubleTapped">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FunctionHit">
+                            <Border Background="Transparent" Padding="10,0,8,0"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <ToolTip.Tip>
+                                    <ToolTip MaxWidth="960">
+                                        <TextBlock Text="{Binding Signature}" TextWrapping="Wrap"
+                                                   MaxWidth="960" MaxLines="16"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </ToolTip>
+                                </ToolTip.Tip>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="{Binding Function.Name}" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Group}" Opacity="0.55"
+                                               Margin="12,0,0,0" VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </DockPanel>
+    </DockPanel>
+</Window>

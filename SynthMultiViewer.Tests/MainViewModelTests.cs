@@ -7,8 +7,10 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using HanumanInstitute.MediaSynthUI;
 using HanumanInstitute.MvvmDialogs.FrameworkDialogs;
+using HanumanInstitute.ScriptAssist;
 using HanumanInstitute.SynthMultiViewer.Models;
 using HanumanInstitute.SynthMultiViewer.ViewModels;
+using Moq;
 using ReactiveUI.Builder;
 using Xunit;
 
@@ -714,6 +716,87 @@ public class MainViewModelTests
         await model.New.Execute();
 
         Assert.False(((ICommand)model.Properties).CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public async Task FunctionsExplorer_EditorSelected_ShowsModelessWindow()
+    {
+        var manager = new TestSupport.ScriptedDialogManager();
+        var model = TestSupport.CreateMain(manager: manager);
+        await model.New.Execute();
+
+        await model.FunctionsExplorer.Execute();
+
+        var explorer = Assert.IsType<FunctionsExplorerViewModel>(manager.LastShown);
+        Assert.Same(model.SelectedItem, explorer.Editor);
+        Assert.True(model.IsFunctionsExplorerOpen);
+    }
+
+    [AvaloniaFact]
+    public async Task FunctionsExplorer_AlreadyOpen_ClosesWindow()
+    {
+        var manager = new TestSupport.ScriptedDialogManager();
+        var model = TestSupport.CreateMain(manager: manager);
+        await model.New.Execute();
+        await model.FunctionsExplorer.Execute();
+        var opened = model.IsFunctionsExplorerOpen;
+
+        await model.FunctionsExplorer.Execute();
+
+        Assert.True(opened);
+        Assert.False(model.IsFunctionsExplorerOpen);
+    }
+
+    [AvaloniaFact]
+    public async Task FunctionsExplorer_ViewerSelected_CannotExecute()
+    {
+        var model = TestSupport.CreateMain();
+        await model.New.Execute();
+        await model.Run.Execute();
+
+        Assert.False(((ICommand)model.FunctionsExplorer).CanExecute(null));
+    }
+
+    [AvaloniaFact]
+    public async Task FunctionsExplorer_ViewerTab_ClosesWindow()
+    {
+        var manager = new TestSupport.ScriptedDialogManager();
+        var model = TestSupport.CreateMain(manager: manager);
+        await model.New.Execute();
+        await model.FunctionsExplorer.Execute();
+
+        await model.Run.Execute();
+
+        Assert.False(model.IsFunctionsExplorerOpen);
+    }
+
+    [AvaloniaFact]
+    public async Task FunctionsExplorer_SwitchEditor_BrowsesNewEditor()
+    {
+        var manager = new TestSupport.ScriptedDialogManager();
+        var model = TestSupport.CreateMain(manager: manager);
+        await model.New.Execute();
+        await model.FunctionsExplorer.Execute();
+        var explorer = Assert.IsType<FunctionsExplorerViewModel>(manager.LastShown);
+        var n = 0;
+        var languages = new Mock<IScriptLanguageFactory>();
+        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+            .Returns(() =>
+            {
+                n++;
+                IReadOnlyList<BrowseGroup> groups =
+                    [new BrowseGroup(n.ToString(), [new BrowseFunction("F", "F()", "F()")])];
+                return Task.FromResult(groups);
+            });
+        explorer.Languages = languages.Object;
+        await explorer.ReloadAsync();
+
+        await model.New.Execute();
+
+        Assert.True(model.IsFunctionsExplorerOpen);
+        Assert.Same(model.SelectedItem, explorer.Editor);
+        Assert.Equal("2", Assert.Single(explorer.Groups).Name);
     }
 
     [AvaloniaTheory(Timeout = 10000)]

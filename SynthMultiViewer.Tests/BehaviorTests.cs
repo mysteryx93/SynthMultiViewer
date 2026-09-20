@@ -401,6 +401,120 @@ public class BehaviorTests
         Assert.Null(await clipboard.TryGetBitmapAsync());
     }
 
+    [AvaloniaFact]
+    public async Task Viewer_Tab_DoesNotFocusToolbarOrTabClose()
+    {
+        var model = TestSupport.CreateMain();
+        var view = new MainView { DataContext = model, Width = 800, Height = 480 };
+        using var window = TestSupport.Show(view);
+        await model.New.Execute();
+        await model.Run.Execute();
+        Dispatcher.UIThread.RunJobs();
+        var viewer = view.GetVisualDescendants().OfType<ViewerView>().First(x => x.IsEffectivelyVisible);
+        viewer.Focus();
+        Dispatcher.UIThread.RunJobs();
+
+        TestSupport.Press(view, Key.Tab);
+        Dispatcher.UIThread.RunJobs();
+
+        var focused = TopLevel.GetTopLevel(view)!.FocusManager!.GetFocusedElement() as Visual;
+        Assert.NotNull(focused);
+        Assert.False(IsToolbarOrTabClose(focused));
+    }
+
+    [AvaloniaFact]
+    public void ListBoxTextSearch_RepeatedLetter_SelectsNextMatch()
+    {
+        var list = new ListBox
+        {
+            Width = 200,
+            Height = 160,
+            ItemsSource = new[] { "Crop", "CropAbs", "BlankClip" }
+        };
+        ListBoxTextSearch.SetEnabled(list, true);
+        var host = new Window { Width = 240, Height = 200, Content = list };
+        using var shown = TestSupport.Show(host);
+        list.Focus();
+        Dispatcher.UIThread.RunJobs();
+
+        Type(list, "c");
+        var first = list.SelectedItem;
+        Type(list, "c");
+
+        Assert.Equal("Crop", first);
+        Assert.Equal("CropAbs", list.SelectedItem);
+    }
+
+    [AvaloniaFact]
+    public void ListBoxTextSearch_DifferentLetter_StartsNewSearch()
+    {
+        var list = new ListBox
+        {
+            Width = 200,
+            Height = 160,
+            ItemsSource = new[] { "Crop", "BlankClip" }
+        };
+        ListBoxTextSearch.SetEnabled(list, true);
+        var host = new Window { Width = 240, Height = 200, Content = list };
+        using var shown = TestSupport.Show(host);
+        list.Focus();
+        Dispatcher.UIThread.RunJobs();
+
+        Type(list, "c");
+        Type(list, "b");
+
+        Assert.Equal("BlankClip", list.SelectedItem);
+    }
+
+    [AvaloniaFact]
+    public void ListBoxTextSearch_MissThenLetter_SelectsMatch()
+    {
+        var list = new ListBox
+        {
+            Width = 200,
+            Height = 160,
+            ItemsSource = new[] { "Crop", "BlankClip" }
+        };
+        ListBoxTextSearch.SetEnabled(list, true);
+        var host = new Window { Width = 240, Height = 200, Content = list };
+        using var shown = TestSupport.Show(host);
+        list.Focus();
+        Dispatcher.UIThread.RunJobs();
+
+        Type(list, "z");
+        Type(list, "c");
+
+        Assert.Equal("Crop", list.SelectedItem);
+    }
+
+    private static bool IsToolbarOrTabClose(Visual focused)
+    {
+        for (var visual = focused; visual != null; visual = visual.GetVisualParent())
+        {
+            if (visual is Button button && button.Classes.Contains("tab-close"))
+            {
+                return true;
+            }
+
+            if (visual is Control control &&
+                control.GetVisualParent() is StackPanel { Classes: var classes } &&
+                classes.Contains("toolbar"))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void Type(ListBox list, string text) =>
+        list.RaiseEvent(new TextInputEventArgs
+        {
+            RoutedEvent = InputElement.TextInputEvent,
+            Source = list,
+            Text = text
+        });
+
     private static WriteableBitmap CreateFrame() =>
         new(new(8, 8), new(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
 

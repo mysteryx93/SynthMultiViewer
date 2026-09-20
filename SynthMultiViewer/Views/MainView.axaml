@@ -32,6 +32,7 @@
         <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAs}" />
         <KeyBinding Gesture="Ctrl+G" Command="{Binding GoTo}" />
         <KeyBinding Gesture="Ctrl+I" Command="{Binding Properties}" />
+        <KeyBinding Gesture="Ctrl+E" Command="{Binding FunctionsExplorer}" />
         <KeyBinding Gesture="F1" Command="{Binding Help}" />
         <KeyBinding Gesture="F2" Command="{Binding Rename}" />
         <KeyBinding Gesture="Ctrl+T" Command="{Binding ChangeTabColor}" />
@@ -70,6 +71,11 @@
                         IsVisible="{Binding IsEditorSelected}">
                     <Image Source="/Assets/Icons/SaveAs.png" Classes="enabled" />
                 </Button>
+                <ToggleButton ToolTip.Tip="Functions explorer (Ctrl+E)" Command="{Binding FunctionsExplorer}"
+                              IsChecked="{Binding IsFunctionsExplorerOpen, Mode=OneWay}"
+                              IsVisible="{Binding IsEditorSelected}">
+                    <Image Source="/Assets/Icons/Explorer.png" Classes="enabled" />
+                </ToggleButton>
                 <Separator IsVisible="{Binding IsEditorSelected}" />
                 <Button ToolTip.Tip="Go to frame... (Ctrl+G)" Command="{Binding GoTo}"
                         IsVisible="{Binding IsViewerSelected}">
@@ -174,46 +180,54 @@
                           HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                 <Panel MinHeight="{Binding #StartCanvas.Bounds.Height}">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Spacing="16" Margin="0,0,0,24" MaxWidth="560">
+                                Spacing="20" Margin="24,0,24,32" MaxWidth="640">
                         <TextBlock Text="VapourSynth/AviSynth Editor and Viewer"
                                    HorizontalAlignment="Center" TextAlignment="Center"
                                    TextWrapping="Wrap" FontSize="26" FontWeight="SemiBold" />
                         <TextBlock Text="Drop a script here" HorizontalAlignment="Center"
-                                   Opacity="0.7" Margin="0,-4,0,0" />
-                        <StackPanel HorizontalAlignment="Center" Spacing="16" Width="210">
-                            <StackPanel x:Name="StartActions" Spacing="6">
-                                <Button x:Name="StartNewVapourSynth" Content="New VapourSynth Script"
-                                        Command="{Binding New}"
-                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                        MinHeight="0" Padding="10,3" />
-                                <Button x:Name="StartNewAviSynth" Content="New AviSynth Script"
-                                        Command="{Binding NewAviSynth}"
-                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                        MinHeight="0" Padding="10,3" />
-                                <Button x:Name="StartOpen" Content="Open Existing" Command="{Binding Open}"
-                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                        MinHeight="0" Padding="10,3" />
-                            </StackPanel>
-                            <StackPanel x:Name="StartRecentsPanel" Spacing="0" ClipToBounds="True"
-                                        IsVisible="{Binding HasRecents}"
-                                        Width="{Binding #StartActions.Bounds.Width}">
-                                <TextBlock Text="Recent:" Opacity="0.8" />
-                                <ItemsControl x:Name="StartRecents" ItemsSource="{Binding Recents}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:RecentFileItem">
-                                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                                    Background="Transparent" BorderBrush="Transparent"
-                                                    BorderThickness="0"
-                                                    Padding="0,3" ClipToBounds="True"
-                                                    Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenRecent}"
-                                                    CommandParameter="{Binding Path}" ToolTip.Tip="{Binding Path}">
-                                                <TextBlock Text="{Binding Name}" TextWrapping="NoWrap"
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
+                                   Opacity="0.7" Margin="0,-8,0,4" />
+                        <StackPanel x:Name="StartActions" Classes="start-tiles">
+                            <Button x:Name="StartNewVapourSynth" Classes="start-tile" Command="{Binding New}"
+                                    ToolTip.Tip="New VapourSynth script (Ctrl+N)">
+                                <StackPanel Spacing="10">
+                                    <Image Source="/Assets/Icons/256/NewVs.png" />
+                                    <TextBlock Text="VapourSynth" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="StartNewAviSynth" Classes="start-tile" Command="{Binding NewAviSynth}"
+                                    ToolTip.Tip="New AviSynth script (Ctrl+M)">
+                                <StackPanel Spacing="10">
+                                    <Image Source="/Assets/Icons/256/NewAvs.png" />
+                                    <TextBlock Text="AviSynth" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="StartOpen" Classes="start-tile" Command="{Binding Open}"
+                                    ToolTip.Tip="Open file (Ctrl+O)">
+                                <StackPanel Spacing="10">
+                                    <Image Source="/Assets/Icons/256/Open.png" />
+                                    <TextBlock Text="Open" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel x:Name="StartRecentsPanel" Spacing="4" ClipToBounds="True"
+                                    IsVisible="{Binding HasRecents}" Margin="0,8,0,0"
+                                    Width="{Binding #StartActions.Bounds.Width}">
+                            <TextBlock Text="Recent" Opacity="0.65" FontWeight="SemiBold" />
+                            <ItemsControl x:Name="StartRecents" ItemsSource="{Binding Recents}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:RecentFileItem">
+                                        <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                                Background="Transparent" BorderBrush="Transparent"
+                                                BorderThickness="0"
+                                                Padding="0,4" ClipToBounds="True"
+                                                Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenRecent}"
+                                                CommandParameter="{Binding Path}" ToolTip.Tip="{Binding Path}">
+                                            <TextBlock Text="{Binding Name}" TextWrapping="NoWrap"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </StackPanel>
                 </Panel>

@@ -93,4 +93,15 @@ public class ScriptLanguageFactory : IScriptLanguageFactory
             profile.Service.Invalidate();
         }
     }
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<BrowseGroup>> BrowseAsync(string language, string text,
+        CancellationToken cancellationToken, string? documentPath = null,
+        IReadOnlyList<string>? extraPackages = null)
+    {
+        language.CheckNotNull();
+        return _profiles.TryGetValue(language, out var profile)
+            ? profile.Service.BrowseAsync(text, cancellationToken, documentPath, extraPackages)
+            : Task.FromResult<IReadOnlyList<BrowseGroup>>([]);
+    }
 }

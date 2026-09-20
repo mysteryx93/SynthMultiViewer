@@ -25,12 +25,18 @@ internal sealed class VapourSynthIncludeSource(IFileSystemService files) : IIncl
         }
     }
 
-    /// <inheritdoc />
-    public IncludeFile? Read(string specifier, string? fromPath)
+    /// <summary>
+    /// Plugin and site-package directories used to resolve Python imports and list installed packages.
+    /// </summary>
+    public static IReadOnlyList<string> SearchRoots()
     {
         VsHelper.TryFindLibrary(out var libraryPath);
-        return ScriptFiles.PythonModule(specifier, fromPath, VsRoots(libraryPath), files);
+        return VsRoots(libraryPath);
     }
+
+    /// <inheritdoc />
+    public IncludeFile? Read(string specifier, string? fromPath) =>
+        ScriptFiles.PythonModule(specifier, fromPath, SearchRoots(), files);
 
     private static string[] VsRoots(string? libraryPath)
     {

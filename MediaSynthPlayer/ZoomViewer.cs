@@ -32,7 +32,8 @@ public class ZoomViewer : ScrollViewer
         HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
         VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
         AllowAutoHide = false;
-        Focusable = false;
+        Focusable = true;
+        IsTabStop = false;
         ClipToBounds = true;
         UseLayoutRounding = true;
         Background = Brushes.Transparent;

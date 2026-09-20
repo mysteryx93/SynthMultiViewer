@@ -1362,6 +1362,18 @@ internal static class VapourSynthBinder
         }
     }
 
+    /// <summary>
+    /// Parses column-0 exports of <paramref name="specifier"/> without binding them into a document.
+    /// </summary>
+    internal static LoadedScript? LoadPackage(string specifier, string? documentPath, IIncludeSource? read,
+        LexerOptions lexer, CancellationToken token, IncludeCache? includes)
+    {
+        var scriptModules = new Dictionary<string, IReadOnlyList<Symbol>>(StringComparer.Ordinal);
+        var modulesByPath = new Dictionary<string, SymbolList>(StringComparer.Ordinal);
+        return LoadModule(specifier, documentPath, read, scriptModules, modulesByPath, lexer, token,
+            new IncludeSession(includes));
+    }
+
     private static LoadedScript? LoadModule(string imported, string? documentPath, IIncludeSource? read,
         Dictionary<string, IReadOnlyList<Symbol>> scriptModules, Dictionary<string, SymbolList> modulesByPath,
         LexerOptions lexer, CancellationToken token, IncludeSession includes)
@@ -1584,6 +1596,17 @@ internal static class VapourSynthBinder
                 continue;
             }
 
+            if (Keyword(quoted, span.Start, span.End, "class") && IndentAt(clean, span.Start) == 0)
+            {
+                var at = AfterKeyword(quoted, span.Start, span.End, "class");
+                if (TryIdent(quoted, ref at, span.End, out var name))
+                {
+                    ReplaceSymbol(members, new(name, []));
+                }
+
+                continue;
+            }
+
             ApplyBody(quoted, span, null, path, read, scriptModules, modulesByPath, lexer, token, members, dummy,
                 scopes, index, includes, visible, members);
         }
@@ -1682,5 +1705,5 @@ internal static class VapourSynthBinder
             Scopes = scopes ?? []
         };
 
-    private readonly record struct LoadedScript(string Id, IReadOnlyList<Symbol> Members);
+    internal readonly record struct LoadedScript(string Id, IReadOnlyList<Symbol> Members);
 }

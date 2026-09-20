@@ -129,6 +129,19 @@ public sealed class LanguageService : ILanguageService
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<BrowseGroup>> BrowseAsync(string text, CancellationToken cancellationToken,
+        string? documentPath = null, IReadOnlyList<string>? extraPackages = null)
+    {
+        var native = await _catalog.GetAsync(cancellationToken).ConfigureAwait(false);
+        return await Task.Run(() =>
+        {
+            var snapshot = Snapshot(text, native, cancellationToken, documentPath);
+            return _language.Browse(native, snapshot.Bindings, text, cancellationToken, documentPath,
+                extraPackages);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public void Invalidate()
     {
         lock (_cacheGate)

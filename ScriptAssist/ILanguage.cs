@@ -55,4 +55,13 @@ public interface ILanguage
     /// Returns the argument name for a catalog or header parameter string.
     /// </summary>
     string? ParameterName(string parameter) => null;
+
+    /// <summary>
+    /// Projects catalog symbols and the current snapshot into explorer groups.
+    /// Extra installed packages may be loaded through includes; they are not bound into
+    /// <paramref name="bindings"/>.
+    /// </summary>
+    IReadOnlyList<BrowseGroup> Browse(IReadOnlyList<Symbol> catalog, DocumentBindings bindings, string text,
+        CancellationToken token = default, string? documentPath = null,
+        IReadOnlyList<string>? extraPackages = null) => [];
 }
