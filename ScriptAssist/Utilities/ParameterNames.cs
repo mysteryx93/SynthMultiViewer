@@ -68,7 +68,7 @@ internal static class ParameterNames
         }
 
         var type = text[(colon + 1)..].Trim();
-        var extra = type.IndexOf(':');
+        var extra = IndexOfTopLevel(type, ':');
         if (extra >= 0)
         {
             type = type[..extra];

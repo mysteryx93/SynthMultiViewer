@@ -1493,6 +1493,37 @@ public class VapourSynthLanguageTests
     }
 
     [Fact]
+    public void Analyze_UnknownCallAssignment_KeepsClip()
+    {
+        const string text = """
+            clip = core.std.BlankClip()
+            clip = FrameRateConverter(clip, preset="faster")
+            clip.
+            """;
+
+        var reply = VsService().Analyze(text, text.Length, Vs);
+
+        Assert.Contains(reply.Items, x => x.InsertionText == "std");
+        Assert.Contains(reply.Items, x => x.InsertionText == "width");
+    }
+
+    [Fact]
+    public void Analyze_MemberAccessBeforeRebind_OffersClip()
+    {
+        const string text = """
+            clip = core.std.BlankClip()
+            clip.
+            clip = 1
+            """;
+        var caret = text.IndexOf("clip.", StringComparison.Ordinal) + "clip.".Length;
+
+        var reply = VsService().Analyze(text, caret, Vs);
+
+        Assert.Contains(reply.Items, x => x.InsertionText == "std");
+        Assert.Contains(reply.Items, x => x.InsertionText == "width");
+    }
+
+    [Fact]
     public void Analyze_ChainedRebinding_InvalidatesNodeType()
     {
         const string text = """
@@ -2162,6 +2193,65 @@ public class VapourSynthLanguageTests
 
         Assert.DoesNotContain(reply.Items, x => x.InsertionText == "std");
         Assert.DoesNotContain(reply.Items, x => x.InsertionText == "width");
+    }
+
+    [Fact]
+    public void Analyze_ConditionalPluginFallback_KeepsClip()
+    {
+        const string text = """
+            import os
+            import vapoursynth as vs
+            core = vs.core
+            base = "/home/hanuman/GitHub/FrameRateConverter/Tests/base"
+            src = os.path.join(base, "Motion Estimation Torture Clip.avi")
+            clip = core.ffms2.Source(src) if hasattr(core, "ffms2") else core.bs.VideoSource(src)
+            clip.
+            """;
+        Symbol[] catalog =
+        [
+            ..Vs,
+            new("core.ffms2.Source", ["source:data"], ReturnType: "clip:vnode;"),
+            new("core.bs.VideoSource", ["source:data"], ReturnType: "clip:vnode;")
+        ];
+
+        var reply = VsService().Analyze(text, text.Length, catalog);
+
+        Assert.Contains(reply.Items, x => x.InsertionText == "std");
+        Assert.Contains(reply.Items, x => x.InsertionText == "width");
+    }
+
+    [Fact]
+    public void Analyze_OsPathJoin_IsString()
+    {
+        const string text = """
+            import os
+            src = os.path.join(base, "Motion Estimation Torture Clip.avi")
+            src.
+            """;
+
+        var reply = VsService().Analyze(text, text.Length, Vs);
+
+        Assert.DoesNotContain(reply.Items, x => x.InsertionText == "std");
+        Assert.DoesNotContain(reply.Items, x => x.InsertionText == "width");
+    }
+
+    [Fact]
+    public void Analyze_ConditionalPluginFallbackMissingPlugin_KeepsClip()
+    {
+        const string text = """
+            clip = core.ffms2.Source(src) if hasattr(core, "ffms2") else core.bs.VideoSource(src)
+            clip.
+            """;
+        Symbol[] catalog =
+        [
+            ..Vs,
+            new("core.bs.VideoSource", ["source:data"], ReturnType: "clip:vnode;")
+        ];
+
+        var reply = VsService().Analyze(text, text.Length, catalog);
+
+        Assert.Contains(reply.Items, x => x.InsertionText == "std");
+        Assert.Contains(reply.Items, x => x.InsertionText == "width");
     }
 
     [Theory]

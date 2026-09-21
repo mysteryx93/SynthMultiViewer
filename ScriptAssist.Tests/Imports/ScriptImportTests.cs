@@ -235,7 +235,7 @@ public class ScriptImportTests
     public void Analyze_UnknownImport_StaysSilent()
     {
         var service = new LanguageService(new VapourSynthLanguage(HavsReader(null)), Catalog());
-        const string text = "import os\nos.";
+        const string text = "import missing\nmissing.";
 
         var reply = service.Analyze(text, text.Length, Vs);
 
@@ -243,6 +243,19 @@ public class ScriptImportTests
         Assert.DoesNotContain(reply.Items, x => x.InsertionText == "Crop");
         Assert.DoesNotContain(reply.Items, x => x.InsertionText == "QTGMC");
         Assert.Empty(reply.Items);
+    }
+
+    [Fact]
+    public void Analyze_ImportOs_OffersPath()
+    {
+        var service = new LanguageService(new VapourSynthLanguage(HavsReader(null)), Catalog());
+        const string text = "import os\nos.";
+
+        var reply = service.Analyze(text, text.Length, Vs);
+
+        Assert.Contains(reply.Items, x => x.InsertionText == "path");
+        Assert.DoesNotContain(reply.Items, x => x.InsertionText == "Crop");
+        Assert.DoesNotContain(reply.Items, x => x.InsertionText == "QTGMC");
     }
 
     [Fact]

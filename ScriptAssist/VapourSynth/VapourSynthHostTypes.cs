@@ -23,12 +23,12 @@ public static class VapourSynthHostTypes
     /// </summary>
     public static IReadOnlyList<Symbol> ModuleMembers { get; } =
     [
-        new("core", null, SymbolKind.Namespace),
+        new("core", null, SymbolKind.Namespace, ReturnType: "Core"),
         .. Formats.Select(x => new Symbol(x, null, SymbolKind.Property, ReturnType: "int")),
         .. Families.Select(x => new Symbol(x, null, SymbolKind.Property, ReturnType: "int")),
         new("INTEGER", null, SymbolKind.Property, ReturnType: "int"),
         new("FLOAT", null, SymbolKind.Property, ReturnType: "int"),
-        new("Error", null, SymbolKind.Namespace),
+        new("Error", []),
         new("VideoNode", null, SymbolKind.Namespace),
         new("AudioNode", null, SymbolKind.Namespace)
     ];

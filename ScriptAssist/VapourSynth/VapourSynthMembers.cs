@@ -19,6 +19,12 @@ internal static class VapourSynthMembers
         {
             return bindings.ScriptModules.TryGetValue(script, out var members) ? DisplayAll(members) : [];
         }
+
+        var typeName = TypeNameMembers(type);
+        if (typeName != null)
+        {
+            return typeName;
+        }
         if (type == VapourSynthTypes.Module)
         {
             return VapourSynthHostTypes.ModuleMembers;
@@ -42,6 +48,12 @@ internal static class VapourSynthMembers
         if (type == VapourSynthTypes.VideoFrame)
         {
             return VapourSynthHostTypes.VideoFrameMembers;
+        }
+
+        var prelude = VapourSynthPythonPrelude.Members(type);
+        if (prelude != null)
+        {
+            return prelude;
         }
 
         var ns = VapourSynthTypes.NamespaceOf(type);
@@ -88,6 +100,12 @@ internal static class VapourSynthMembers
                 : null;
         }
 
+        var typeName = TypeNameMembers(receiver);
+        if (typeName != null)
+        {
+            return Named(typeName, name);
+        }
+
         if (receiver == VapourSynthTypes.Module)
         {
             return Named(VapourSynthHostTypes.ModuleMembers, name);
@@ -121,11 +139,34 @@ internal static class VapourSynthMembers
             return Named(VapourSynthHostTypes.VideoFrameMembers, name);
         }
 
+        var prelude = VapourSynthPythonPrelude.Members(receiver);
+        if (prelude != null)
+        {
+            return Named(prelude, name);
+        }
+
         var ns = VapourSynthTypes.NamespaceOf(receiver);
         return ns == null
             ? null
             : index.FindFunction(ns, name, VapourSynthTypes.IsBound(receiver),
                 VapourSynthTypes.IsBound(receiver) ? VapourSynthTypes.BoundNode(receiver) : default);
+    }
+
+    private static IReadOnlyList<Symbol>? TypeNameMembers(TypeRef type)
+    {
+        var snapshot = VapourSynthTypes.FunctionSymbol(type);
+        if (snapshot is not { Kind: SymbolKind.Namespace, Parameters: { Length: > 0 } names })
+        {
+            return null;
+        }
+
+        var items = new Symbol[names.Length];
+        for (var i = 0; i < names.Length; i++)
+        {
+            items[i] = new(names[i], null, SymbolKind.Property);
+        }
+
+        return items;
     }
 
     private static Symbol? Named(IReadOnlyList<Symbol> symbols, string name)

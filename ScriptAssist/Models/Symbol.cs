@@ -40,14 +40,15 @@ public sealed record Symbol(
 
             if (Kind == SymbolKind.Namespace)
             {
-                if (Parameters is { Length: > 0 })
-                {
-                    return DisplayName + ": " + string.Join(", ", Parameters);
-                }
-
-                if (ReturnType.HasValue() && ReturnType.IndexOf(':') < 0)
+                if (ReturnType.HasValue() &&
+                    !ReturnType.StartsWith("script:", StringComparison.Ordinal))
                 {
                     return Name + ": " + ReturnType;
+                }
+
+                if (Parameters is { Length: > 0 } && !ReturnType.HasValue())
+                {
+                    return Name + ": " + string.Join(" | ", Parameters);
                 }
 
                 return Name;

@@ -146,17 +146,26 @@ internal static class VapourSynthClassRanges
             return new(name, parameters);
         }
 
-        if (IsDataclass(quoted, clean, span.Start, statements))
+        if (IsDataclass(quoted, clean, span.Start, statements) ||
+            IsRecordTypeClass(quoted, span.Start, span.End))
         {
             return new(name, DataclassParameters(quoted, clean, span.Start, classes, statements) ?? []);
         }
 
-        if (!IsTypeNameClass(quoted, span.Start, span.End))
+        if (IsTypeNameClass(quoted, span.Start, span.End))
         {
-            return new(name, null);
+            var members = TypeMembers(quoted, clean, span.Start, classes, statements);
+            if (members is { Length: > 0 })
+            {
+                var choices = string.Join(" | ", members);
+                var hint = IsEnumClass(quoted, span.Start, span.End, name) ? "Enum: " + choices : choices;
+                return new(name, members, SymbolKind.Namespace, ReturnType: hint);
+            }
         }
 
-        return new(name, TypeMembers(quoted, clean, span.Start, classes, statements), SymbolKind.Namespace);
+        var bases = TypeBases(quoted, span.Start, span.End);
+        return new(name, null, SymbolKind.Namespace,
+            ReturnType: bases.HasValue() ? "Class bases: " + bases : "Class");
     }
 
     public static string[]? ConstructorParameters(string clean, int classStart,
@@ -366,6 +375,7 @@ internal static class VapourSynthClassRanges
             }
 
             var i = span.Start;
+            VapourSynthBinder.SkipWs(quoted, ref i, span.End);
             if (!VapourSynthBinder.TryIdent(quoted, ref i, span.End, out var name) || name.StartsWith('_'))
             {
                 continue;
@@ -383,8 +393,75 @@ internal static class VapourSynthClassRanges
         return names.Count == 0 ? null : [..names];
     }
 
-    private static bool IsTypeNameClass(string quoted, int start, int end)
+    private static bool IsRecordTypeClass(string quoted, int start, int end) =>
+        ClassHasBase(quoted, start, end, record: true);
+
+    private static bool IsTypeNameClass(string quoted, int start, int end) =>
+        ClassHasBase(quoted, start, end, record: false);
+
+    private static bool IsEnumClass(string quoted, int start, int end, string name)
     {
+        if (name.EndsWith("Enum", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!TryClassBases(quoted, start, end, out var open, out var close))
+        {
+            return false;
+        }
+
+        foreach (var ident in BaseIdents(quoted, open + 1, close))
+        {
+            if (IsEnumBase(ident))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? TypeBases(string quoted, int start, int end)
+    {
+        if (!TryClassBases(quoted, start, end, out var open, out var close))
+        {
+            return null;
+        }
+
+        var names = BaseIdents(quoted, open + 1, close);
+        if (names.Length == 0)
+        {
+            return null;
+        }
+
+        var shown = 0;
+        for (var i = 0; i < names.Length; i++)
+        {
+            if (names[i].StartsWith('_'))
+            {
+                continue;
+            }
+
+            names[shown++] = names[i];
+        }
+
+        if (shown == 0)
+        {
+            shown = names.Length;
+        }
+
+        return string.Join(", ", names, 0, shown);
+    }
+
+    private static bool ClassHasBase(string quoted, int start, int end, bool record) =>
+        TryClassBases(quoted, start, end, out var open, out var close) &&
+        HasNamedBase(quoted, open + 1, close, record);
+
+    private static bool TryClassBases(string quoted, int start, int end, out int open, out int close)
+    {
+        open = -1;
+        close = -1;
         var i = VapourSynthBinder.AfterKeyword(quoted, start, end, "class");
         if (!VapourSynthBinder.TryIdent(quoted, ref i, end, out _))
         {
@@ -392,16 +469,22 @@ internal static class VapourSynthClassRanges
         }
 
         VapourSynthBinder.SkipWs(quoted, ref i, end);
+        if (!SkipTypeParams(quoted, ref i, end))
+        {
+            return false;
+        }
+
         if (i >= end || quoted[i] != '(')
         {
             return false;
         }
 
-        var close = FunctionHeaders.MatchingClose(quoted, i, end);
-        return close > i && HasTypeNameBase(quoted, i + 1, close);
+        open = i;
+        close = FunctionHeaders.MatchingClose(quoted, i, end);
+        return close > i;
     }
 
-    private static bool HasTypeNameBase(string text, int start, int end)
+    private static bool HasNamedBase(string text, int start, int end, bool record)
     {
         var depth = 0;
         var ident = -1;
@@ -446,7 +529,7 @@ internal static class VapourSynthClassRanges
                 continue;
             }
 
-            if (c == ',' && IsTypeNameBase(last))
+            if (c == ',' && MatchesNamedBase(last, record))
             {
                 return true;
             }
@@ -455,10 +538,83 @@ internal static class VapourSynthClassRanges
         return false;
     }
 
+    private static string[] BaseIdents(string text, int start, int end)
+    {
+        var names = new List<string>();
+        var depth = 0;
+        var ident = -1;
+        var last = "";
+        var skip = false;
+        for (var i = start; i <= end; i++)
+        {
+            var c = i < end ? text[i] : ',';
+            if (depth == 0 && ident >= 0 && (i == end || !BufferLexer.IsIdentifier(c)))
+            {
+                last = text[ident..i];
+                ident = -1;
+            }
+
+            if (c is '[' or '(')
+            {
+                depth++;
+                continue;
+            }
+
+            if (c is ']' or ')' && depth > 0)
+            {
+                depth--;
+                continue;
+            }
+
+            if (depth != 0)
+            {
+                continue;
+            }
+
+            if (c == '=')
+            {
+                skip = true;
+                ident = -1;
+                last = "";
+                continue;
+            }
+
+            if (i < end && BufferLexer.IsIdentifier(c) && (ident >= 0 || c is < '0' or > '9'))
+            {
+                if (ident < 0)
+                {
+                    ident = i;
+                }
+
+                continue;
+            }
+
+            if (c != ',')
+            {
+                continue;
+            }
+
+            if (!skip && last.Length > 0)
+            {
+                names.Add(last);
+            }
+
+            last = "";
+            skip = false;
+        }
+
+        return [..names];
+    }
+
+    private static bool MatchesNamedBase(string name, bool record) =>
+        record ? name is "TypedDict" or "NamedTuple" : IsTypeNameBase(name);
+
     private static bool IsTypeNameBase(string name) =>
+        IsEnumBase(name) || name is "ABC" or "Protocol";
+
+    private static bool IsEnumBase(string name) =>
         name.Length > 0 && (name.EndsWith("Enum", StringComparison.Ordinal) ||
-            name.EndsWith("Error", StringComparison.Ordinal) ||
-            name is "IntFlag" or "Flag" or "TypedDict" or "NamedTuple" or "ABC" or "Protocol");
+            name is "IntFlag" or "Flag");
 
     private static string[] WithoutReceiver(IReadOnlyList<string> parameters)
     {
@@ -501,6 +657,11 @@ internal static class VapourSynthClassRanges
         }
 
         VapourSynthBinder.SkipWs(quoted, ref i, span.End);
+        if (!SkipTypeParams(quoted, ref i, span.End))
+        {
+            return false;
+        }
+
         var close = i > 0 ? i - 1 : 0;
         if (i < span.End && quoted[i] == '(')
         {
@@ -515,6 +676,24 @@ internal static class VapourSynthClassRanges
 
         headerEnd = HeaderColon(clean, close);
         return headerEnd > close;
+    }
+
+    private static bool SkipTypeParams(string quoted, ref int i, int end)
+    {
+        if (i >= end || quoted[i] != '[')
+        {
+            return true;
+        }
+
+        var match = FunctionHeaders.MatchingBracket(quoted, i, end);
+        if (match < 0)
+        {
+            return false;
+        }
+
+        i = match + 1;
+        VapourSynthBinder.SkipWs(quoted, ref i, end);
+        return true;
     }
 
     private static int LineStart(string text, int offset)

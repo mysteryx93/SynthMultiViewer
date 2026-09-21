@@ -54,6 +54,49 @@ internal static class FunctionHeaders
     }
 
     /// <summary>
+    /// Returns the index of the <c>]</c> matching <paramref name="open"/>, or -1.
+    /// Nested <c>[]</c> are counted; parentheses and braces are ignored.
+    /// </summary>
+    public static int MatchingBracket(string text, int open, int limit = -1)
+    {
+        var depth = 1;
+        var quote = '\0';
+        var end = limit < 0 || limit > text.Length ? text.Length : limit;
+        for (var i = open + 1; i < end; i++)
+        {
+            var c = text[i];
+            if (quote != '\0')
+            {
+                if (c == quote)
+                {
+                    quote = '\0';
+                }
+
+                continue;
+            }
+
+            if (c is '"' or '\'')
+            {
+                quote = c;
+            }
+            else if (c == '[')
+            {
+                depth++;
+            }
+            else if (c == ']')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return i;
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
     /// Returns the index of the <c>}</c> matching <paramref name="open"/>, or -1.
     /// </summary>
     public static int MatchingBrace(string text, int open)

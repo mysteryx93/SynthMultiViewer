@@ -7,8 +7,12 @@ using Xunit;
 namespace HanumanInstitute.ScriptAssist.Tests.Host;
 
 [SuppressMessage("Usage", "xUnit1051:Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken")]
-public class ScriptPackagesTests
+public class ScriptPackagesTests : TestsBase
 {
+    public ScriptPackagesTests(ITestOutputHelper output) : base(output)
+    {
+    }
+
     [Fact]
     public void List_RequiresVapourSynth_ReturnsName()
     {
@@ -130,6 +134,39 @@ public class ScriptPackagesTests
     }
 
     [Fact]
+    public void List_RecordModules_IncludesEveryTopLevel()
+    {
+        var record = string.Join('\n',
+        [
+            "vsaa/__init__.py,sha256=a,1",
+            "vsdeband/__init__.py,sha256=a,1",
+            "vsdehalo/__init__.py,sha256=a,1",
+            "vsdeinterlace/__init__.py,sha256=a,1",
+            "vsdenoise/__init__.py,sha256=a,1",
+            "vsexprtools/__init__.py,sha256=a,1",
+            "vsjetpack/__init__.py,sha256=a,1",
+            "vskernels/__init__.py,sha256=a,1",
+            "vsmasktools/__init__.py,sha256=a,1",
+            "vsrgtools/__init__.py,sha256=a,1",
+            "vsscale/__init__.py,sha256=a,1",
+            "vssource/__init__.py,sha256=a,1",
+            "vstools/__init__.py,sha256=a,1"
+        ]);
+        var files = new FakeFileSystemService()
+            .Add("/site-packages/vsjetpack-1.0.dist-info/METADATA", "Name: vsjetpack\n")
+            .Add("/site-packages/vsjetpack-1.0.dist-info/RECORD", record);
+
+        var names = ScriptPackages.List(["/site-packages"], files);
+
+        Assert.DoesNotContain("vsjetpack", names);
+        Assert.Contains("vstools", names);
+        Assert.Contains("vsmasktools", names);
+        Assert.Contains("vsrgtools", names);
+        Assert.Contains("vsscale", names);
+        Assert.Contains("vssource", names);
+    }
+
+    [Fact]
     public void List_TopLevelTxt_UsesDeclaredImportName()
     {
         var files = new FakeFileSystemService()
@@ -147,33 +184,41 @@ public class ScriptPackagesTests
     {
         var cts = new CancellationTokenSource();
         var reads = 0;
-        var path = new Mock<IPath>();
-        path.Setup(p => p.GetFileName(It.IsAny<string>()))
-            .Returns((string value) => System.IO.Path.GetFileName(value));
-        path.Setup(p => p.Combine(It.IsAny<string>(), It.IsAny<string>()))
-            .Returns((string left, string right) => System.IO.Path.Combine(left, right));
-        var directory = new Mock<IDirectory>();
-        directory.Setup(d => d.Exists("/site")).Returns(true);
-        directory.Setup(d => d.EnumerateDirectories("/site"))
-            .Returns(Enumerable.Range(0, 40).Select(i => "/site/pkg" + i + "-1.0.dist-info"));
-        directory.Setup(d => d.EnumerateFiles("/site", "*.egg-info")).Returns([]);
-        directory.Setup(d => d.EnumerateFiles("/site", "*.py")).Returns([]);
-        var file = new Mock<IFile>();
-        file.Setup(f => f.Exists(It.IsAny<string>())).Returns(true);
-        file.Setup(f => f.ReadAllText(It.IsAny<string>())).Returns(() =>
+        var path = InitMock<IPath>(p =>
         {
-            reads++;
-            if (reads == 1)
-            {
-                cts.Cancel();
-            }
-
-            return "Name: pkg\nRequires-Dist: vapoursynth\n";
+            p.Setup(x => x.GetFileName(It.IsAny<string>()))
+                .Returns((string value) => System.IO.Path.GetFileName(value));
+            p.Setup(x => x.Combine(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns((string left, string right) => System.IO.Path.Combine(left, right));
         });
-        var files = new Mock<IFileSystemService>();
-        files.Setup(f => f.Directory).Returns(directory.Object);
-        files.Setup(f => f.Path).Returns(path.Object);
-        files.Setup(f => f.File).Returns(file.Object);
+        var directory = InitMock<IDirectory>(d =>
+        {
+            d.Setup(x => x.Exists("/site")).Returns(true);
+            d.Setup(x => x.EnumerateDirectories("/site"))
+                .Returns(Enumerable.Range(0, 40).Select(i => "/site/pkg" + i + "-1.0.dist-info"));
+            d.Setup(x => x.EnumerateFiles("/site", "*.egg-info")).Returns([]);
+            d.Setup(x => x.EnumerateFiles("/site", "*.py")).Returns([]);
+        });
+        var file = InitMock<IFile>(f =>
+        {
+            f.Setup(x => x.Exists(It.IsAny<string>())).Returns(true);
+            f.Setup(x => x.ReadAllText(It.IsAny<string>())).Returns(() =>
+            {
+                reads++;
+                if (reads == 1)
+                {
+                    cts.Cancel();
+                }
+
+                return "Name: pkg\nRequires-Dist: vapoursynth\n";
+            });
+        });
+        var files = InitMock<IFileSystemService>(f =>
+        {
+            f.Setup(x => x.Directory).Returns(directory.Object);
+            f.Setup(x => x.Path).Returns(path.Object);
+            f.Setup(x => x.File).Returns(file.Object);
+        });
 
         var act = () => ScriptPackages.List(["/site"], files.Object, cts.Token);
 

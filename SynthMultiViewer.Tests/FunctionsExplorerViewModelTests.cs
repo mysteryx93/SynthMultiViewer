@@ -2,6 +2,7 @@ using System.Reactive.Linq;
 using System.Windows.Input;
 using HanumanInstitute.MediaSynthUI;
 using HanumanInstitute.ScriptAssist;
+using HanumanInstitute.ScriptAssist.Tests;
 using HanumanInstitute.SynthMultiViewer.ViewModels;
 using Moq;
 using ReactiveUI.Builder;
@@ -9,10 +10,14 @@ using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class FunctionsExplorerViewModelTests
+public class FunctionsExplorerViewModelTests : TestsBase
 {
     static FunctionsExplorerViewModelTests() =>
         RxAppBuilder.CreateReactiveUIBuilder().WithCoreServices().BuildApp();
+
+    public FunctionsExplorerViewModelTests(ITestOutputHelper output) : base(output)
+    {
+    }
 
     [Fact]
     public void Insert_BeforeCaretWhenEditorAlreadyShifted_MovesOnce()
@@ -39,13 +44,7 @@ public class FunctionsExplorerViewModelTests
     {
         var editor = new EditorViewModel { Script = "clip = " };
         editor.CaretOffset = editor.Script.Length;
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
-            ]);
+        var languages = Languages(new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -73,18 +72,13 @@ public class FunctionsExplorerViewModelTests
     [Fact]
     public async Task Filter_Text_SearchesAllGroups()
     {
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
+        var languages = Languages(
+            new BrowseGroup("std",
             [
-                new BrowseGroup("std",
-                [
-                    new BrowseFunction("BlankClip", "BlankClip()", "core.std.BlankClip()"),
-                    new BrowseFunction("Crop", "Crop()", "core.std.Crop()")
-                ]),
-                new BrowseGroup("resize", [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")])
-            ]);
+                new BrowseFunction("BlankClip", "BlankClip()", "core.std.BlankClip()"),
+                new BrowseFunction("Crop", "Crop()", "core.std.Crop()")
+            ]),
+            new BrowseGroup("resize", [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")]));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -104,17 +98,12 @@ public class FunctionsExplorerViewModelTests
     [Fact]
     public async Task Filter_DottedName_MatchesInsertText()
     {
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
+        var languages = Languages(
+            new BrowseGroup("vsdenoise",
             [
-                new BrowseGroup("vsdenoise",
-                [
-                    new BrowseFunction("MotionMode", "MotionMode: SAD, COHERENCE", "vsdenoise.MotionMode")
-                ]),
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
-            ]);
+                new BrowseFunction("MotionMode", "MotionMode: SAD, COHERENCE", "vsdenoise.MotionMode")
+            ]),
+            new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -132,14 +121,9 @@ public class FunctionsExplorerViewModelTests
     [Fact]
     public async Task Filter_GroupName_ListsThatGroup()
     {
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]),
-                new BrowseGroup("resize", [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")])
-            ]);
+        var languages = Languages(
+            new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]),
+            new BrowseGroup("resize", [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")]));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -156,14 +140,9 @@ public class FunctionsExplorerViewModelTests
     [Fact]
     public async Task Filter_Cleared_ReturnsToGroupList()
     {
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]),
-                new BrowseGroup("resize", [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")])
-            ]);
+        var languages = Languages(
+            new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]),
+            new BrowseGroup("resize", [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")]));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -185,14 +164,8 @@ public class FunctionsExplorerViewModelTests
         const string script = "import vapoursynth as vs\nclip = ";
         var editor = new EditorViewModel { Script = script };
         editor.CaretOffset = editor.Script.Length;
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("havsfunc",
-                    [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")])
-            ]);
+        var languages = Languages(new BrowseGroup("havsfunc",
+            [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -208,14 +181,8 @@ public class FunctionsExplorerViewModelTests
         const string script = "import havsfunc\nclip = ";
         var editor = new EditorViewModel { Script = script };
         editor.CaretOffset = editor.Script.Length;
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("havsfunc",
-                    [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")])
-            ]);
+        var languages = Languages(new BrowseGroup("havsfunc",
+            [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -230,14 +197,8 @@ public class FunctionsExplorerViewModelTests
         const string script = "from havsfunc import QTGMC\nclip = ";
         var editor = new EditorViewModel { Script = script };
         editor.CaretOffset = editor.Script.Length;
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("havsfunc",
-                    [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")])
-            ]);
+        var languages = Languages(new BrowseGroup("havsfunc",
+            [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -260,17 +221,11 @@ public class FunctionsExplorerViewModelTests
     [Fact]
     public async Task MoveSelection_DownWhileSearching_SelectsNextHit()
     {
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std",
-                [
-                    new BrowseFunction("Crop", "Crop()", "core.std.Crop()"),
-                    new BrowseFunction("CropAbs", "CropAbs()", "core.std.CropAbs()")
-                ])
-            ]);
+        var languages = Languages(new BrowseGroup("std",
+        [
+            new BrowseFunction("Crop", "Crop()", "core.std.Crop()"),
+            new BrowseFunction("CropAbs", "CropAbs()", "core.std.CropAbs()")
+        ]));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -288,19 +243,21 @@ public class FunctionsExplorerViewModelTests
     [Fact]
     public async Task Editor_Changed_BrowsesNewEditor()
     {
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), "first", It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
-            ]);
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), "second", It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("resize", [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")])
-            ]);
+        var languages = InitMock<IScriptLanguageFactory>(mock =>
+        {
+            mock.Setup(f => f.BrowseAsync(It.IsAny<string>(), "first", It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .ReturnsAsync(
+                [
+                    new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
+                ]);
+            mock.Setup(f => f.BrowseAsync(It.IsAny<string>(), "second", It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .ReturnsAsync(
+                [
+                    new BrowseGroup("resize", [new BrowseFunction("Bilinear", "Bilinear()", "core.resize.Bilinear()")])
+                ]);
+        });
         var model = new FunctionsExplorerViewModel { Languages = languages.Object };
         model.Editor = new EditorViewModel { Script = "first" };
 
@@ -316,13 +273,15 @@ public class FunctionsExplorerViewModelTests
     {
         var firstDone = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
         var second = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), "first", It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .Returns(firstDone.Task);
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), "second", It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .Returns(second.Task);
+        var languages = InitMock<IScriptLanguageFactory>(mock =>
+        {
+            mock.Setup(f => f.BrowseAsync(It.IsAny<string>(), "first", It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .Returns(firstDone.Task);
+            mock.Setup(f => f.BrowseAsync(It.IsAny<string>(), "second", It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .Returns(second.Task);
+        });
         var model = new FunctionsExplorerViewModel { Languages = languages.Object };
         var firstEditor = new EditorViewModel { Script = "first" };
         var secondEditor = new EditorViewModel { Script = "second" };
@@ -344,10 +303,10 @@ public class FunctionsExplorerViewModelTests
     public async Task OnClosed_PendingBrowse_DiscardsResults()
     {
         var pending = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .Returns(pending.Task);
+        var languages = InitMock<IScriptLanguageFactory>(mock =>
+            mock.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .Returns(pending.Task));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -369,14 +328,8 @@ public class FunctionsExplorerViewModelTests
         const string script = "import vapoursynth as vs\nclip = ";
         var editor = new EditorViewModel { Script = script };
         editor.CaretOffset = editor.Script.Length;
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("havsfunc",
-                    [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")])
-            ]);
+        var languages = Languages(new BrowseGroup("havsfunc",
+            [new BrowseFunction("QTGMC", "QTGMC()", "havsfunc.QTGMC()", "havsfunc")]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
         await model.Insert.Execute();
@@ -391,14 +344,8 @@ public class FunctionsExplorerViewModelTests
     {
         var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
         editor.CaretOffset = editor.Script.Length;
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("This file",
-                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
-            ]);
+        var languages = Languages(new BrowseGroup("This file",
+            [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -414,14 +361,8 @@ public class FunctionsExplorerViewModelTests
     {
         var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
         editor.CaretOffset = 0;
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("This file",
-                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
-            ]);
+        var languages = Languages(new BrowseGroup("This file",
+            [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
         await model.GoTo.Execute();
@@ -438,14 +379,8 @@ public class FunctionsExplorerViewModelTests
     {
         var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
         editor.CaretOffset = editor.Script.Length;
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("This file",
-                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
-            ]);
+        var languages = Languages(new BrowseGroup("This file",
+            [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -462,14 +397,8 @@ public class FunctionsExplorerViewModelTests
     public async Task GoTo_AfterEdit_IsDisabled()
     {
         var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("This file",
-                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
-            ]);
+        var languages = Languages(new BrowseGroup("This file",
+            [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -483,14 +412,8 @@ public class FunctionsExplorerViewModelTests
     public async Task GoTo_InsertBeforeHeader_ShiftsOffset()
     {
         var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("This file",
-                    [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)])
-            ]);
+        var languages = Languages(new BrowseGroup("This file",
+            [new BrowseFunction("Foo", "Foo()", "Foo()", Offset: 0)]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -507,10 +430,10 @@ public class FunctionsExplorerViewModelTests
     {
         var editor = new EditorViewModel { Script = "def Foo():\n    pass\n" };
         var pending = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .Returns(pending.Task);
+        var languages = InitMock<IScriptLanguageFactory>(mock =>
+            mock.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .Returns(pending.Task));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         var reload = model.ReloadAsync();
         editor.Script = "x = 1\ndef Foo():\n    pass\n";
@@ -530,13 +453,7 @@ public class FunctionsExplorerViewModelTests
     public async Task ReloadAsync_WhileLoaded_DisablesInsert()
     {
         var pending = new TaskCompletionSource<IReadOnlyList<BrowseGroup>>();
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
-            ]);
+        var languages = Languages(new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -560,19 +477,21 @@ public class FunctionsExplorerViewModelTests
     public async Task Editor_KindChanged_Reloads()
     {
         var editor = new EditorViewModel { Script = "clip = ", Kind = ScriptKind.VapourSynth };
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(ScriptLanguageFactory.VapourSynth, It.IsAny<string>(),
-                It.IsAny<CancellationToken>(), It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
-            ]);
-        languages.Setup(f => f.BrowseAsync(ScriptLanguageFactory.AviSynth, It.IsAny<string>(),
-                It.IsAny<CancellationToken>(), It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("Internal", [new BrowseFunction("Crop", "Crop()", "Crop()")])
-            ]);
+        var languages = InitMock<IScriptLanguageFactory>(mock =>
+        {
+            mock.Setup(f => f.BrowseAsync(ScriptLanguageFactory.VapourSynth, It.IsAny<string>(),
+                    It.IsAny<CancellationToken>(), It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .ReturnsAsync(
+                [
+                    new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
+                ]);
+            mock.Setup(f => f.BrowseAsync(ScriptLanguageFactory.AviSynth, It.IsAny<string>(),
+                    It.IsAny<CancellationToken>(), It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .ReturnsAsync(
+                [
+                    new BrowseGroup("Internal", [new BrowseFunction("Crop", "Crop()", "Crop()")])
+                ]);
+        });
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -586,13 +505,7 @@ public class FunctionsExplorerViewModelTests
     public async Task Editor_FileNameChanged_ReloadsWithPath()
     {
         var editor = new EditorViewModel { Script = "clip = " };
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
-            ]);
+        var languages = Languages(new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]));
         var model = new FunctionsExplorerViewModel { Languages = languages.Object, Editor = editor };
         await model.ReloadAsync();
 
@@ -606,14 +519,9 @@ public class FunctionsExplorerViewModelTests
     [Fact]
     public async Task Filter_SameName_KeepsInsertText()
     {
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("pkg.a", [new BrowseFunction("Foo", "Foo()", "pkg.a.Foo()")]),
-                new BrowseGroup("pkg.b", [new BrowseFunction("Foo", "Foo()", "pkg.b.Foo()")])
-            ]);
+        var languages = Languages(
+            new BrowseGroup("pkg.a", [new BrowseFunction("Foo", "Foo()", "pkg.a.Foo()")]),
+            new BrowseGroup("pkg.b", [new BrowseFunction("Foo", "Foo()", "pkg.b.Foo()")]));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -631,13 +539,7 @@ public class FunctionsExplorerViewModelTests
     [Fact]
     public async Task ReloadAsync_IOException_KeepsListAndSetsError()
     {
-        var languages = new Mock<IScriptLanguageFactory>();
-        languages.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
-                It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
-            .ReturnsAsync(
-            [
-                new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")])
-            ]);
+        var languages = Languages(new BrowseGroup("std", [new BrowseFunction("Crop", "Crop()", "core.std.Crop()")]));
         var model = new FunctionsExplorerViewModel
         {
             Languages = languages.Object,
@@ -654,4 +556,10 @@ public class FunctionsExplorerViewModelTests
         Assert.Equal("std", Assert.Single(model.Groups).Name);
         Assert.False(model.CanInsert);
     }
+
+    private Mock<IScriptLanguageFactory> Languages(params BrowseGroup[] groups) =>
+        InitMock<IScriptLanguageFactory>(mock =>
+            mock.Setup(f => f.BrowseAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(),
+                    It.IsAny<string?>(), It.IsAny<IReadOnlyList<string>?>()))
+                .ReturnsAsync(groups));
 }

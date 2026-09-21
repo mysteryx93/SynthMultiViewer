@@ -9,7 +9,7 @@ namespace HanumanInstitute.ScriptAssist.VapourSynth;
 internal static class VapourSynthBinder
 {
     /// <summary>
-    /// Last assignment wins; seeded <c>vs</c>/<c>core</c> names are overwritten when rebound.
+    /// Last assignment at or before the caret wins; seeded <c>vs</c>/<c>core</c> names are overwritten when rebound.
     /// </summary>
     public static DocumentBindings Bind(string text, IReadOnlyList<Symbol> catalog, LexerOptions lexer,
         CancellationToken token, string? documentPath = null, IIncludeSource? read = null,
@@ -30,6 +30,10 @@ internal static class VapourSynthBinder
             ["vapoursynth"] = VapourSynthTypes.Module,
             ["core"] = VapourSynthTypes.Core
         };
+        foreach (var builtin in VapourSynthPythonPrelude.Builtins)
+        {
+            names[builtin.Name] = VapourSynthTypes.Function(builtin);
+        }
         var scriptModules = new Dictionary<string, IReadOnlyList<Symbol>>(StringComparer.Ordinal);
         var modulesByPath = new Dictionary<string, SymbolList>(StringComparer.Ordinal);
         var buffer = new SymbolList();
@@ -40,8 +44,13 @@ internal static class VapourSynthBinder
         var innerAt = MapInnermost(statements, scopes);
         var classes = ClassRanges(clean, quoted, statements);
         var deferred = new List<int>();
-        var visible = new VisibleCache();
+        var writes = new List<NameWrite>();
+        var visible = new VisibleCache { History = writes };
         var cache = new IncludeSession(includes);
+        foreach (var pair in names)
+        {
+            writes.Add(new(-1, pair.Key, pair.Value));
+        }
 
         for (var i = 0; i < statements.Count; i++)
         {
@@ -51,6 +60,7 @@ internal static class VapourSynthBinder
             }
 
             var span = statements[i];
+            visible.Offset = span.Start;
             var inner = innerAt[i];
             if (PythonHeaders.IsDef(quoted, span.Start, span.End))
             {
@@ -112,6 +122,7 @@ internal static class VapourSynthBinder
         {
             token.ThrowIfCancellationRequested();
             var span = statements[i];
+            visible.Offset = span.Start;
             var inner = innerAt[i];
             if (DirectlyInClass(span.Start, classes, inner) && !PythonHeaders.IsDef(quoted, span.Start, span.End))
             {
@@ -139,7 +150,7 @@ internal static class VapourSynthBinder
         cache.Finish(documentPath);
         Freeze(scopes);
         FreezeModules(scriptModules);
-        return Current(names, scriptModules, buffer.Freeze(), scopes);
+        return Current(names, scriptModules, buffer.Freeze(), scopes, writes);
     }
 
     private static void ApplyBody(string quoted, StatementScanner.Span span, BindingScope? scope,
@@ -291,6 +302,12 @@ internal static class VapourSynthBinder
         if (imported is "vapoursynth" or "vs")
         {
             SetName(alias, VapourSynthTypes.Module, scope, names, buffer, visible);
+            return;
+        }
+
+        if (VapourSynthPythonPrelude.TryModule(imported, explicitAlias, out var prelude))
+        {
+            SetName(alias, prelude, scope, names, buffer, visible);
             return;
         }
 
@@ -632,6 +649,11 @@ internal static class VapourSynthBinder
 
         foreach (var target in targets)
         {
+            if (type.IsUnknown && IsKnownName(target, scope, names))
+            {
+                continue;
+            }
+
             SetName(target, type, scope, names, buffer, visible);
         }
     }
@@ -950,6 +972,12 @@ internal static class VapourSynthBinder
         }
     }
 
+    private static bool IsKnownName(string name, BindingScope? scope, Dictionary<string, TypeRef> names)
+    {
+        var table = scope == null ? names : ScopeNames(scope);
+        return table.TryGetValue(name, out var typed) && !typed.IsUnknown;
+    }
+
     private static void SetName(string name, TypeRef type, BindingScope? scope, Dictionary<string, TypeRef> names,
         SymbolList? buffer = null, VisibleCache? visible = null)
     {
@@ -1179,9 +1207,28 @@ internal static class VapourSynthBinder
         IncludeSession includes, VisibleCache? visible = null, BindingScope? scope = null)
     {
         list = FlattenImportList(list);
-        var script = LoadModule(imported, documentPath, read, scriptModules, modulesByPath, lexer, token, includes);
+        var prelude = VapourSynthPythonPrelude.TryModule(imported, true, out _);
+        var script = prelude
+            ? null
+            : LoadModule(imported, documentPath, read, scriptModules, modulesByPath, lexer, token, includes);
         foreach (var (source, alias) in ImportNames(list))
         {
+            if (VapourSynthPythonPrelude.TryMember(imported, source, out var member))
+            {
+                var shown = member.Name == alias ? member : member with { Name = alias };
+                if (names != null && member.Kind == SymbolKind.Namespace && member.ReturnType is { Length: > 0 } id &&
+                    id.StartsWith("py:", StringComparison.Ordinal))
+                {
+                    SetName(alias, new(id), scope, names, target, visible);
+                }
+                else
+                {
+                    Export(shown, target, names, visible, scope);
+                }
+
+                continue;
+            }
+
             if (source == "*")
             {
                 if (script == null)
@@ -1658,13 +1705,14 @@ internal static class VapourSynthBinder
 
     private static DocumentBindings Current(IReadOnlyDictionary<string, TypeRef> names,
         Dictionary<string, IReadOnlyList<Symbol>> scriptModules, IReadOnlyList<Symbol> buffer,
-        IReadOnlyList<BindingScope>? scopes = null) =>
+        IReadOnlyList<BindingScope>? scopes = null, IReadOnlyList<NameWrite>? writes = null) =>
         new()
         {
             Names = names,
             ScriptModules = scriptModules,
             BufferSymbols = buffer,
-            Scopes = scopes ?? []
+            Scopes = scopes ?? [],
+            Writes = writes ?? []
         };
 
     internal readonly record struct LoadedScript(

@@ -6,6 +6,8 @@ namespace HanumanInstitute.ScriptAssist.VapourSynth;
 internal sealed class VisibleCache
 {
     public OverlayNames? Names;
+    public List<NameWrite>? History;
+    public int Offset = -1;
     private BindingScope? _scope;
     private HashSet<string>? _moduleNames;
     private Dictionary<string, Symbol>? _local;
@@ -73,6 +75,11 @@ internal sealed class VisibleCache
 
     public void NoteName(BindingScope? changed, string name, TypeRef type)
     {
+        if (changed == null)
+        {
+            History?.Add(new(Offset, name, type));
+        }
+
         if (!Tracks(changed) || Names == null)
         {
             return;
@@ -103,6 +110,7 @@ internal sealed class VisibleCache
         {
             _moduleNames ??= new(StringComparer.Ordinal);
             _moduleNames.Add(symbol.Name);
+            History?.Add(new(Offset, symbol.Name, default, Remove: true));
         }
 
         if (!Tracks(changed) || Names == null)

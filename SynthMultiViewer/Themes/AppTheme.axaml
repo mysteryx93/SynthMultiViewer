@@ -1,6 +1,7 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:edit="using:AvaloniaEdit"
+        xmlns:cc="using:AvaloniaEdit.CodeCompletion"
         xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
         xmlns:h="using:HanumanInstitute.SynthMultiViewer.Helpers"
         xmlns:i="using:Avalonia.Xaml.Interactivity"
@@ -165,6 +166,28 @@
     </Style>
     <Style Selector="ListBox">
         <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
+    </Style>
+    <Style Selector="cc|CompletionListBox">
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="AutoScrollToSelectedItem" Value="False" />
+        <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    </Style>
+    <Style Selector="cc|CompletionListBox /template/ ScrollViewer#PART_ScrollViewer">
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="AllowAutoHide" Value="False" />
+    </Style>
+    <Style Selector="cc|CompletionListBox ListBoxItem">
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="4,2" />
+    </Style>
+    <Style Selector="cc|CompletionListBox Image">
+        <Setter Property="Width" Value="0" />
+        <Setter Property="Height" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="IsVisible" Value="False" />
     </Style>
     <Style Selector="ListBox.compact">
         <Setter Property="AutoScrollToSelectedItem" Value="True" />

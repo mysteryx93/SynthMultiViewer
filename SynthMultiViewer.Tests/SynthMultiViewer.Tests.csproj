@@ -14,5 +14,6 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <ProjectReference Include="../SynthMultiViewer/SynthMultiViewer.csproj" />
+    <ProjectReference Include="../ScriptAssist.Tests/ScriptAssist.Tests.csproj" />
   </ItemGroup>
 </Project>

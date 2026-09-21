@@ -46,7 +46,7 @@ public sealed class CompletionData : ICompletionData
         get
         {
             var text = HintText(_item, _size);
-            return !text.HasValue() ? null! : HintBlock(text, _size);
+            return text.HasValue() ? HintBlock(text, _size) : null!;
         }
     }
 

@@ -74,6 +74,14 @@ public class CompletionDataTests
     }
 
     [Fact]
+    public void Complete_EmptyHint_ClearsDescription()
+    {
+        var description = new CompletionData(new("fps", 0, 3, SymbolKind.Property, "fps")).Description;
+
+        Assert.Null(description);
+    }
+
+    [Fact]
     public void Complete_HintDescription_WrapsAndEllipsizes()
     {
         var parameters = Enumerable.Repeat("clip:vnode:opt", 20).ToArray();

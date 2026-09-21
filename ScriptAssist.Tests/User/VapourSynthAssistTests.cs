@@ -60,6 +60,83 @@ public class VapourSynthAssistTests
     }
 
     [Fact]
+    public void Complete_VsCore_MatchesHover()
+    {
+        const string members = "vs.";
+        const string hoverAt = "vs.core";
+
+        var item = Assert.Single(VsService().Analyze(members, members.Length, Vs).Items,
+            x => x.InsertionText == "core");
+        var hover = VsService().Analyze(hoverAt, hoverAt.Length, Vs).Hover;
+
+        Assert.Equal("Core", hover?.Text);
+        Assert.Equal(CompletionData.HintText(item), hover?.Text);
+    }
+
+    [Fact]
+    public void Complete_VsError_MatchesHover()
+    {
+        const string members = "vs.";
+        const string hoverAt = "vs.Error";
+
+        var item = Assert.Single(VsService().Analyze(members, members.Length, Vs).Items,
+            x => x.InsertionText == "Error");
+        var hover = VsService().Analyze(hoverAt, hoverAt.Length, Vs).Hover;
+
+        Assert.Equal("Error()", CompletionData.HintText(item));
+        Assert.Equal(CompletionData.HintText(item), hover?.Text);
+    }
+
+    [Fact]
+    public void Complete_VsAudioNode_OmitsHint()
+    {
+        const string members = "vs.";
+        const string hoverAt = "vs.AudioNode";
+
+        var item = Assert.Single(VsService().Analyze(members, members.Length, Vs).Items,
+            x => x.InsertionText == "AudioNode");
+        var hover = VsService().Analyze(hoverAt, hoverAt.Length, Vs).Hover;
+
+        Assert.Null(CompletionData.HintText(item));
+        Assert.Null(hover);
+    }
+
+    [Fact]
+    public void Hover_ConditionalPluginFallback_ShowsVideoNode()
+    {
+        const string text = """
+            import os
+            import vapoursynth as vs
+            core = vs.core
+            base = "/home/hanuman/GitHub/FrameRateConverter/Tests/base"
+            src = os.path.join(base, "Motion Estimation Torture Clip.avi")
+            clip = core.ffms2.Source(src) if hasattr(core, "ffms2") else core.bs.VideoSource(src)
+            """;
+        Symbol[] catalog =
+        [
+            ..Vs,
+            new("core.bs.VideoSource", ["source:data"], ReturnType: "clip:vnode;")
+        ];
+
+        var hover = VsService().Analyze(text, text.IndexOf("clip =", StringComparison.Ordinal) + 2, catalog).Hover;
+
+        Assert.Equal("VideoNode", hover?.Text);
+    }
+
+    [Fact]
+    public void Hover_OsPathJoin_ShowsStr()
+    {
+        const string text = """
+            import os
+            src = os.path.join(base, "Motion Estimation Torture Clip.avi")
+            """;
+
+        var hover = VsService().Analyze(text, text.IndexOf("src =", StringComparison.Ordinal) + 2, Vs).Hover;
+
+        Assert.Equal("str", hover?.Text);
+    }
+
+    [Fact]
     public void Complete_CorePlugin_MatchesHover()
     {
         const string members = "core.";
@@ -473,7 +550,20 @@ public class VapourSynthAssistTests
     }
 
     [Fact]
-    public void Insight_ImportedClass_ShowsParametersUnknown()
+    public void Hover_EarlierAssignment_ShowsVideoNode()
+    {
+        const string text = """
+            clip = core.std.BlankClip()
+            clip = 1
+            """;
+
+        var hover = VsService().Analyze(text, text.IndexOf("clip =", StringComparison.Ordinal) + 2, Vs).Hover;
+
+        Assert.Equal("VideoNode", hover?.Text);
+    }
+
+    [Fact]
+    public void Insight_ImportedClassWithoutInit_HasNoCall()
     {
         const string helper = "class Filter:\n    pass\n";
         const string text = "import helper\nhelper.Filter(";
@@ -483,26 +573,21 @@ public class VapourSynthAssistTests
 
         var insight = service.Analyze(text, text.Length, []).Insight;
 
-        Assert.NotNull(insight);
-        Assert.Contains("parameters unknown", insight.Overloads[0].Signature, StringComparison.Ordinal);
+        Assert.True(insight == null || insight.Overloads.All(x => x.Name != "Filter"));
     }
 
     [Fact]
-    public void Insight_FromImportedClass_ShowsParametersUnknown()
+    public void Hover_FromImportedClassWithoutInit_ShowsClass()
     {
         const string helper = "class Filter:\n    pass\n";
-        const string text = "from helper import Filter\nFilter(";
+        const string text = "import helper\nhelper.Filter";
         var service = VsService(Includes(Read));
         IncludeFile? Read(string specifier, string? _) =>
             specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
 
-        var hover = service.Analyze(text, text.IndexOf("Filter(", StringComparison.Ordinal) + 1, []).Hover;
-        var insight = service.Analyze(text, text.Length, []).Insight;
+        var hover = service.Analyze(text, text.Length, []).Hover;
 
-        Assert.NotNull(hover);
-        Assert.Contains("parameters unknown", hover.Text, StringComparison.Ordinal);
-        Assert.NotNull(insight);
-        Assert.Contains("parameters unknown", insight.Overloads[0].Signature, StringComparison.Ordinal);
+        Assert.Equal("Class", hover?.Text);
     }
 
     [Fact]
@@ -546,26 +631,68 @@ public class VapourSynthAssistTests
 
         var insight = service.Analyze(text, text.Length, []).Insight;
 
-        Assert.NotNull(insight);
-        Assert.Contains("parameters unknown", insight.Overloads[0].Signature, StringComparison.Ordinal);
-        Assert.DoesNotContain("x", insight.Overloads[0].Signature, StringComparison.Ordinal);
+        Assert.True(insight == null || insight.Overloads.All(item => item.Name != "Outer"));
     }
 
     [Fact]
-    public void Hover_ImportedEnum_ShowsMembers()
+    public void Complete_ImportedEnum_OffersMembers()
     {
-        const string helper = "class MotionMode(CustomIntEnum):\n    SAD = 0\n    COHERENCE = 1\n";
-        const string text = "import helper\nhelper.MotionMode";
+        const string helper = "class MeanMode(CustomEnum):\n    ARITHMETIC = 1\n    MEDIAN = auto()\n";
+        const string text = "import helper\nhelper.MeanMode.";
         var service = VsService(Includes(Read));
         IncludeFile? Read(string specifier, string? _) =>
             specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
 
-        var hover = service.Analyze(text, text.Length, []).Hover;
+        var reply = service.Analyze(text, text.Length, []);
 
-        Assert.NotNull(hover);
-        Assert.Contains("SAD", hover.Text, StringComparison.Ordinal);
-        Assert.Contains("COHERENCE", hover.Text, StringComparison.Ordinal);
-        Assert.DoesNotContain("parameters unknown", hover.Text, StringComparison.Ordinal);
+        Assert.Contains(reply.Items, x => x.InsertionText == "ARITHMETIC" && x.Kind == SymbolKind.Property);
+        Assert.Contains(reply.Items, x => x.InsertionText == "MEDIAN" && x.Kind == SymbolKind.Property);
+        Assert.DoesNotContain(reply.Items, x => x.InsertionText == "MeanMode");
+    }
+
+    [Fact]
+    public void Complete_ImportedStrEnum_OffersMembers()
+    {
+        const string helper = "class ConvMode(CustomStrEnum):\n    SQUARE = \"s\"\n    VERTICAL = \"v\"\n";
+        const string text = "import helper\nhelper.ConvMode.";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var reply = service.Analyze(text, text.Length, []);
+
+        Assert.Contains(reply.Items, x => x.InsertionText == "SQUARE");
+        Assert.Contains(reply.Items, x => x.InsertionText == "VERTICAL");
+    }
+
+    [Fact]
+    public void Complete_ImportedEnum_HintsMembers()
+    {
+        const string helper = "class MeanMode(CustomEnum):\n    ARITHMETIC = 1\n    MEDIAN = auto()\n";
+        const string text = "import helper\nhelper.";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var item = Assert.Single(service.Analyze(text, text.Length, []).Items, x => x.InsertionText == "MeanMode");
+
+        Assert.Equal(SymbolKind.Namespace, item.Kind);
+        Assert.Equal("Enum: ARITHMETIC | MEDIAN", CompletionData.HintText(item));
+    }
+
+    [Fact]
+    public void Complete_FromImportedEnum_OffersMembers()
+    {
+        const string helper = "class MeanMode(CustomEnum):\n    ARITHMETIC = 1\n    MEDIAN = auto()\n";
+        const string text = "from helper import MeanMode\nMeanMode.";
+        var service = VsService(Includes(Read));
+        IncludeFile? Read(string specifier, string? _) =>
+            specifier == "helper" ? new IncludeFile("/plugins/helper.py", helper) : null;
+
+        var reply = service.Analyze(text, text.Length, []);
+
+        Assert.Contains(reply.Items, x => x.InsertionText == "ARITHMETIC");
+        Assert.Contains(reply.Items, x => x.InsertionText == "MEDIAN");
     }
 
     [Fact]

@@ -1,3 +1,5 @@
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using AvaloniaEdit;
 using AvaloniaEdit.CodeCompletion;
 
@@ -9,6 +11,7 @@ namespace HanumanInstitute.ScriptAssist.AvaloniaEdit;
 internal sealed class CompletionPresenter(TextEditor editor, AssistTipSize? size = null)
 {
     private CompletionWindow? _window;
+    private CompletionHint? _hint;
 
     /// <summary>
     /// Gets the live completion window, if any.
@@ -32,9 +35,11 @@ internal sealed class CompletionPresenter(TextEditor editor, AssistTipSize? size
             StartOffset = first.Start,
             EndOffset = first.Start + first.Length,
             CloseAutomatically = true,
+            ShouldUseOverlayLayer = true,
+            TakesFocusFromNativeControl = false,
             CompletionList =
             {
-                CompletionAcceptAction = CompletionAcceptAction.PointerPressed
+                CompletionAcceptAction = CompletionAcceptAction.PointerReleased
             }
         };
         foreach (var item in reply.Items)
@@ -46,11 +51,15 @@ internal sealed class CompletionPresenter(TextEditor editor, AssistTipSize? size
         {
             if (ReferenceEquals(_window, window))
             {
+                _hint?.Detach();
+                _hint = null;
                 _window = null;
             }
         };
         _window = window;
         window.Show();
+        ClipList(window.CompletionList.ListBox);
+        _hint = new CompletionHint(window);
         if (first.Start >= 0 && first.Start <= caret && caret <= text.Length)
         {
             window.CompletionList.SelectItem(text[first.Start..caret]);
@@ -62,7 +71,21 @@ internal sealed class CompletionPresenter(TextEditor editor, AssistTipSize? size
     /// </summary>
     public void Hide()
     {
+        _hint?.Detach();
+        _hint = null;
         _window?.Hide();
         _window = null;
+    }
+
+    private static void ClipList(ListBox? list)
+    {
+        if (list == null)
+        {
+            return;
+        }
+
+        list.ClipToBounds = true;
+        ScrollViewer.SetAllowAutoHide(list, false);
+        ScrollViewer.SetHorizontalScrollBarVisibility(list, ScrollBarVisibility.Disabled);
     }
 }

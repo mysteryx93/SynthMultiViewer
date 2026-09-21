@@ -255,7 +255,7 @@ public static class ScriptPackages
                 hasPython = true;
             }
 
-            if (!python || modules.Count >= 8)
+            if (!python)
             {
                 continue;
             }

@@ -5,16 +5,19 @@ using Xunit;
 
 namespace HanumanInstitute.ScriptAssist.Tests.Host;
 
-public class CatalogSourceTests
+public class CatalogSourceTests : TestsBase
 {
+    public CatalogSourceTests(ITestOutputHelper output) : base(output)
+    {
+    }
+
     [Fact]
     public void Enumerate_VapourSynthDump_MapsCoreNameAndTitle()
     {
-        var native = new Mock<IVapourSynthNativeCatalog>();
-        native.Setup(n => n.Read()).Returns(
+        var native = InitMock<IVapourSynthNativeCatalog>(n => n.Setup(x => x.Read()).Returns(
         [
             new VapourSynthFunction("bm3d", "BM3D", "clip:vnode", "clip:vnode;", "VapourSynth BM3D")
-        ]);
+        ]));
 
         var symbols = new VapourSynthSymbolSource(native.Object).Enumerate();
 
@@ -28,20 +31,21 @@ public class CatalogSourceTests
     [Fact]
     public void Enumerate_AviSynthDump_SetsGroupAndMergesScripts()
     {
-        var native = new Mock<IAviSynthNativeCatalog>();
-        native.Setup(n => n.Read()).Returns(
+        var native = InitMock<IAviSynthNativeCatalog>(n => n.Setup(x => x.Read()).Returns(
         [
             new AviSynthFilter("Crop", "c[left]i", "InternalFunctions"),
             new AviSynthFilter("AutoloadOnly", "c", "UserFunctions")
-        ]);
-        var folders = new Mock<IScriptDirectory>();
-        folders.Setup(d => d.Roots()).Returns(["/plugins"]);
-        folders.Setup(d => d.Files("/plugins", It.IsAny<IReadOnlyList<string>>()))
-            .Returns(["/plugins/helpers.avsi"]);
-        folders.Setup(d => d.TryRead("/plugins/helpers.avsi"))
-            .Returns("function Helper(clip c) { c }\n");
-        var includes = new Mock<IIncludeSource>();
-        includes.Setup(s => s.Read(It.IsAny<string>(), It.IsAny<string?>())).Returns((IncludeFile?)null);
+        ]));
+        var folders = InitMock<IScriptDirectory>(d =>
+        {
+            d.Setup(x => x.Roots()).Returns(["/plugins"]);
+            d.Setup(x => x.Files("/plugins", It.IsAny<IReadOnlyList<string>>()))
+                .Returns(["/plugins/helpers.avsi"]);
+            d.Setup(x => x.TryRead("/plugins/helpers.avsi"))
+                .Returns("function Helper(clip c) { c }\n");
+        });
+        var includes = InitMock<IIncludeSource>(s =>
+            s.Setup(x => x.Read(It.IsAny<string>(), It.IsAny<string?>())).Returns((IncludeFile?)null));
 
         var symbols = new AviSynthSymbolSource(native.Object, folders.Object, includes.Object)
             .Enumerate();

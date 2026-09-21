@@ -55,9 +55,8 @@ internal static class VapourSynthTypeWalker
 
         if (TryConditional(unwrapped, out var left, out var right))
         {
-            var whenTrue = InferPart(left, bindings, index, token);
-            var whenFalse = InferPart(right, bindings, index, token);
-            return whenTrue == whenFalse && !whenTrue.IsUnknown ? whenTrue : TypeRef.Unknown;
+            return CombineConditional(InferPart(left, bindings, index, token),
+                InferPart(right, bindings, index, token));
         }
 
         var parts = ExpressionParts.SplitAddMul(unwrapped);
@@ -225,6 +224,11 @@ internal static class VapourSynthTypeWalker
             {
                 return VapourSynthTypes.Bound(segment.Name, current);
             }
+
+            if (symbol.ReturnType is { Length: > 0 } id && id.StartsWith("py:", StringComparison.Ordinal))
+            {
+                return new(id);
+            }
         }
 
         return ApplyMember(symbol, segment, VapourSynthTypes.IsBound(current));
@@ -245,6 +249,26 @@ internal static class VapourSynthTypeWalker
         if (snapshot != null)
         {
             return ReturnOf(snapshot);
+        }
+
+        return TypeRef.Unknown;
+    }
+
+    private static TypeRef CombineConditional(TypeRef whenTrue, TypeRef whenFalse)
+    {
+        if (whenTrue == whenFalse)
+        {
+            return whenTrue.IsUnknown ? TypeRef.Unknown : whenTrue;
+        }
+
+        if (whenTrue.IsUnknown)
+        {
+            return whenFalse;
+        }
+
+        if (whenFalse.IsUnknown)
+        {
+            return whenTrue;
         }
 
         return TypeRef.Unknown;

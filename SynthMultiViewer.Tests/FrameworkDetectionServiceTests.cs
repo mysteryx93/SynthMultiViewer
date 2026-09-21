@@ -2,6 +2,7 @@ using HanumanInstitute.ApiAviSynth;
 using HanumanInstitute.ApiVapourSynth;
 using HanumanInstitute.ScriptAssist;
 using HanumanInstitute.ScriptAssist.AviSynth;
+using HanumanInstitute.ScriptAssist.Tests;
 using HanumanInstitute.ScriptAssist.VapourSynth;
 using HanumanInstitute.SynthMultiViewer.Services;
 using Moq;
@@ -9,8 +10,12 @@ using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class FrameworkDetectionServiceTests
+public class FrameworkDetectionServiceTests : TestsBase
 {
+    public FrameworkDetectionServiceTests(ITestOutputHelper output) : base(output)
+    {
+    }
+
     [Fact]
     public void Apply_ConfiguredPathMissing_ReportsErrorWithLoadMessage()
     {
@@ -44,14 +49,14 @@ public class FrameworkDetectionServiceTests
     [Fact]
     public void Apply_WritesFactoryEnablementFromSettings()
     {
-        var vs = new Mock<IVapourSynthNativeCatalog>();
-        vs.Setup(n => n.Read()).Returns([]);
-        var avs = new Mock<IAviSynthNativeCatalog>();
-        avs.Setup(n => n.Read()).Returns([]);
-        var folders = new Mock<IScriptDirectory>();
-        folders.Setup(d => d.Roots()).Returns([]);
-        folders.Setup(d => d.Files(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>())).Returns([]);
-        folders.Setup(d => d.TryRead(It.IsAny<string>())).Returns((string?)null);
+        var vs = InitMock<IVapourSynthNativeCatalog>(n => n.Setup(x => x.Read()).Returns([]));
+        var avs = InitMock<IAviSynthNativeCatalog>(n => n.Setup(x => x.Read()).Returns([]));
+        var folders = InitMock<IScriptDirectory>(d =>
+        {
+            d.Setup(x => x.Roots()).Returns([]);
+            d.Setup(x => x.Files(It.IsAny<string>(), It.IsAny<IReadOnlyList<string>>())).Returns([]);
+            d.Setup(x => x.TryRead(It.IsAny<string>())).Returns((string?)null);
+        });
         var factory = new ScriptLanguageFactory(vs.Object, avs.Object, folders.Object);
         var settings = new TestSupport.MemorySettingsProvider
         {

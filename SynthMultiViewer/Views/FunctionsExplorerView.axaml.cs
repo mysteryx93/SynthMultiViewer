@@ -1,8 +1,11 @@
 using System.Windows.Input;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using HanumanInstitute.SynthMultiViewer.Helpers;
 
 namespace HanumanInstitute.SynthMultiViewer.Views;
@@ -19,6 +22,73 @@ public partial class FunctionsExplorerView : Window
     {
         InitializeComponent();
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        AddHandler(PointerWheelChangedEvent, OnExplorerWheel, RoutingStrategies.Bubble);
+        AddHandler(ScrollViewer.ScrollChangedEvent, OnExplorerScrolled, RoutingStrategies.Bubble);
+    }
+
+    private void OnExplorerWheel(object? sender, PointerWheelEventArgs e)
+    {
+        if (e.Handled || e.Source is not Visual source)
+        {
+            return;
+        }
+
+        if (source is OverlayPopupHost || source.FindAncestorOfType<OverlayPopupHost>() is not null)
+        {
+            ScrollHintList(e);
+        }
+    }
+
+    private void OnExplorerScrolled(object? sender, ScrollChangedEventArgs e)
+    {
+        if (e.OffsetDelta == default || e.Source is not Visual source)
+        {
+            return;
+        }
+
+        var list = source as ListBox ?? source.FindAncestorOfType<ListBox>();
+        if (list == GroupsList || list == FunctionsList || list == HitsList)
+        {
+            HideTips(list);
+        }
+    }
+
+    private void ScrollHintList(PointerWheelEventArgs e)
+    {
+        var list = HitsList.IsVisible ? HitsList : FunctionsList;
+        if (!ScrollByWheel(list, e.Delta))
+        {
+            return;
+        }
+
+        HideTips(list);
+        e.Handled = true;
+    }
+
+    private static bool ScrollByWheel(ListBox list, Vector delta)
+    {
+        var scroll = list.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        if (scroll is null)
+        {
+            return false;
+        }
+
+        var offset = scroll.Offset;
+        scroll.Offset = new Vector(offset.X - (delta.X * 50), offset.Y - (delta.Y * 50));
+        return scroll.Offset != offset;
+    }
+
+    private static void HideTips(Visual visual)
+    {
+        if (visual is Control control && ToolTip.GetIsOpen(control))
+        {
+            ToolTip.SetIsOpen(control, false);
+        }
+
+        foreach (var child in visual.GetVisualChildren())
+        {
+            HideTips(child);
+        }
     }
 
     /// <inheritdoc />

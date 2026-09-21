@@ -8,8 +8,12 @@ namespace HanumanInstitute.ScriptAssist.Tests.Host;
 using static AssistHarness;
 
 [SuppressMessage("Usage", "xUnit1051:Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken")]
-public class ScriptLanguageFactoryTests
+public class ScriptLanguageFactoryTests : TestsBase
 {
+    public ScriptLanguageFactoryTests(ITestOutputHelper output) : base(output)
+    {
+    }
+
     [Fact]
     public void HostConstructor_RegistersVapourSynthAndAviSynth()
     {
@@ -28,8 +32,7 @@ public class ScriptLanguageFactoryTests
     [Fact]
     public async Task IsEnabled_Disabled_SkipsEnumerationUntilEnabled()
     {
-        var native = new Mock<IVapourSynthNativeCatalog>();
-        native.Setup(n => n.Read()).Returns([]);
+        var native = InitMock<IVapourSynthNativeCatalog>(n => n.Setup(x => x.Read()).Returns([]));
         var factory = Languages(native.Object);
         factory.IsEnabled = false;
         factory.Configure(ScriptLanguageFactory.VapourSynth, "a");
@@ -67,8 +70,7 @@ public class ScriptLanguageFactoryTests
     public async Task GetAsync_EnumerationFailure_IsCached()
     {
         const string text = "im";
-        var source = new Mock<ISymbolSource>();
-        source.Setup(s => s.Enumerate()).Throws<InvalidOperationException>();
+        var source = InitMock<ISymbolSource>(s => s.Setup(x => x.Enumerate()).Throws<InvalidOperationException>());
         var cache = new CatalogCache(source.Object);
         cache.Refresh("path1");
         var service = new LanguageService(new VapourSynthLanguage(), cache);
@@ -86,8 +88,7 @@ public class ScriptLanguageFactoryTests
     [Fact]
     public async Task Refresh_SameKey_EnumeratesOnceUntilForced()
     {
-        var source = new Mock<ISymbolSource>();
-        source.Setup(s => s.Enumerate()).Returns([]);
+        var source = InitMock<ISymbolSource>(s => s.Setup(x => x.Enumerate()).Returns([]));
         var cache = new CatalogCache(source.Object);
         cache.Refresh("path1");
         await cache.GetAsync(CancellationToken.None);
@@ -106,10 +107,9 @@ public class ScriptLanguageFactoryTests
     [Fact]
     public async Task Refresh_ForcedFailure_KeepsLastCatalog()
     {
-        var source = new Mock<ISymbolSource>();
-        source.SetupSequence(s => s.Enumerate())
+        var source = InitMock<ISymbolSource>(s => s.SetupSequence(x => x.Enumerate())
             .Returns([new Symbol("core.std.Crop", ["clip:vnode"])])
-            .Throws<InvalidOperationException>();
+            .Throws<InvalidOperationException>());
         var cache = new CatalogCache(source.Object);
         cache.Refresh("path1");
 
@@ -130,8 +130,7 @@ public class ScriptLanguageFactoryTests
         {
             new("std", "Before", "clip:vnode", "clip:vnode;")
         };
-        var native = new Mock<IVapourSynthNativeCatalog>();
-        native.Setup(n => n.Read()).Returns(() => functions.ToArray());
+        var native = InitMock<IVapourSynthNativeCatalog>(n => n.Setup(x => x.Read()).Returns(() => functions.ToArray()));
         var factory = Languages(native.Object);
         var service = factory.Create(ScriptLanguageFactory.VapourSynth)!;
         var first = await service.GetAsync(text, text.Length, CancellationToken.None);
@@ -168,8 +167,7 @@ public class ScriptLanguageFactoryTests
     [Fact]
     public async Task Refresh_WhenDisabled_EnumeratesCatalog()
     {
-        var native = new Mock<IVapourSynthNativeCatalog>();
-        native.Setup(n => n.Read()).Returns([]);
+        var native = InitMock<IVapourSynthNativeCatalog>(n => n.Setup(x => x.Read()).Returns([]));
         var factory = Languages(native.Object);
         factory.IsEnabled = false;
 
@@ -184,8 +182,7 @@ public class ScriptLanguageFactoryTests
     public async Task Refresh_ThenConfigureSameKey_DoesNotEnumerateAgain()
     {
         const string text = "im";
-        var native = new Mock<IVapourSynthNativeCatalog>();
-        native.Setup(n => n.Read()).Returns([]);
+        var native = InitMock<IVapourSynthNativeCatalog>(n => n.Setup(x => x.Read()).Returns([]));
         var factory = Languages(native.Object);
         factory.Configure(ScriptLanguageFactory.VapourSynth, "A");
         var service = factory.Create(ScriptLanguageFactory.VapourSynth)!;

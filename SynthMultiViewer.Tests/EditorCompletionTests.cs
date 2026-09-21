@@ -8,6 +8,7 @@ using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using HanumanInstitute.ScriptAssist;
 using HanumanInstitute.ScriptAssist.AvaloniaEdit;
+using HanumanInstitute.ScriptAssist.Tests;
 using HanumanInstitute.ScriptAssist.VapourSynth;
 using HanumanInstitute.SynthMultiViewer.Controls;
 using Moq;
@@ -15,8 +16,12 @@ using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class EditorCompletionTests
+public class EditorCompletionTests : TestsBase
 {
+    public EditorCompletionTests(ITestOutputHelper output) : base(output)
+    {
+    }
+
     private static readonly Symbol[] Vs =
     [
         new("core.std.Crop", ["clip:vnode", "left:int:opt", "right:int:opt"], ReturnType: "clip:vnode"),
@@ -25,21 +30,22 @@ public class EditorCompletionTests
         new("core.std.SelectEvery", ["clip:vnode", "cycle:int", "offsets:int[]"], ReturnType: "clip:vnode")
     ];
 
-    private static CatalogCache EmptyCatalog()
+    private CatalogCache EmptyCatalog()
     {
-        var source = new Mock<ISymbolSource>();
-        source.Setup(s => s.Enumerate()).Returns([]);
+        var source = InitMock<ISymbolSource>(s => s.Setup(x => x.Enumerate()).Returns([]));
         return new CatalogCache(source.Object);
     }
 
-    private static LanguageService Service() =>
+    private LanguageService Service() =>
         new(new VapourSynthLanguage(), EmptyCatalog());
 
-    private static void UseService(BindableTextEditor editor, ILanguageService service)
+    private void UseService(BindableTextEditor editor, ILanguageService service)
     {
-        var factory = new Mock<IScriptLanguageFactory>();
-        factory.Setup(f => f.IsEnabled).Returns(true);
-        factory.Setup(f => f.Create(It.IsAny<string>())).Returns(service);
+        var factory = InitMock<IScriptLanguageFactory>(f =>
+        {
+            f.Setup(x => x.IsEnabled).Returns(true);
+            f.Setup(x => x.Create(It.IsAny<string>())).Returns(service);
+        });
         editor.LanguageFactory = factory.Object;
     }
 
@@ -117,10 +123,12 @@ public class EditorCompletionTests
         string? path = "/tmp/a.vpy";
         var enabled = true;
         var editor = new TextEditor { Text = "co" };
-        var session = new Mock<IAssistSession>();
-        session.Setup(s => s.AssistanceEnabled).Returns(() => enabled);
-        session.Setup(s => s.ResolveService()).Returns(() => current);
-        session.Setup(s => s.DocumentPath).Returns(() => path);
+        var session = InitMock<IAssistSession>(s =>
+        {
+            s.Setup(x => x.AssistanceEnabled).Returns(() => enabled);
+            s.Setup(x => x.ResolveService()).Returns(() => current);
+            s.Setup(x => x.DocumentPath).Returns(() => path);
+        });
         var assist = new EditorAssist(editor, session.Object);
         assist.Attach();
         using var shown = TestSupport.Show(new() { Content = editor, Width = 400, Height = 200 });
@@ -159,10 +167,12 @@ public class EditorCompletionTests
         string? path = "/tmp/a.vpy";
         var enabled = true;
         var editor = new TextEditor { Text = "clip" };
-        var session = new Mock<IAssistSession>();
-        session.Setup(s => s.AssistanceEnabled).Returns(() => enabled);
-        session.Setup(s => s.ResolveService()).Returns(() => current);
-        session.Setup(s => s.DocumentPath).Returns(() => path);
+        var session = InitMock<IAssistSession>(s =>
+        {
+            s.Setup(x => x.AssistanceEnabled).Returns(() => enabled);
+            s.Setup(x => x.ResolveService()).Returns(() => current);
+            s.Setup(x => x.DocumentPath).Returns(() => path);
+        });
         var assist = new EditorAssist(editor, session.Object);
         assist.Attach();
         using var shown = TestSupport.Show(new() { Content = editor, Width = 400, Height = 200 });
@@ -438,11 +448,10 @@ public class EditorCompletionTests
         editor.DismissCompletion();
     }
 
-    private static BindableTextEditor OpenEditor(string text)
+    private BindableTextEditor OpenEditor(string text)
     {
         var editor = new BindableTextEditor { Text = text };
-        var source = new Mock<ISymbolSource>();
-        source.Setup(s => s.Enumerate()).Returns(Vs);
+        var source = InitMock<ISymbolSource>(s => s.Setup(x => x.Enumerate()).Returns(Vs));
         UseService(editor, new LanguageService(new VapourSynthLanguage(), new CatalogCache(source.Object)));
         return editor;
     }

@@ -18,6 +18,21 @@
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+E" Command="{Binding Close}" />
     </Window.KeyBindings>
+    <Window.Styles>
+        <Style Selector="ToolTip">
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="MaxWidth" Value="960" />
+        </Style>
+        <Style Selector="ToolTip TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="MaxWidth" Value="960" />
+            <Setter Property="MaxLines" Value="16" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="OverlayPopupHost">
+            <Setter Property="IsHitTestVisible" Value="False" />
+        </Style>
+    </Window.Styles>
     <DockPanel Classes="dialog-content">
         <StackPanel DockPanel.Dock="Bottom" Classes="dialog-actions">
             <Button Content="Go To" Command="{Binding GoTo}"
@@ -44,51 +59,47 @@
             </Grid>
             <Grid>
                 <Grid ColumnDefinitions="160,*" ColumnSpacing="8" IsVisible="{Binding !IsSearching}">
-                    <ListBox Classes="compact" ItemsSource="{Binding Groups}"
+                    <ListBox x:Name="GroupsList" Classes="compact" ItemsSource="{Binding Groups}"
                              SelectedItem="{Binding SelectedGroup}">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="sa:BrowseGroup">
                                 <Border Background="Transparent" Padding="10,0,8,0"
-                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                        ToolTip.Tip="{Binding Tip}"
+                                        ToolTip.Placement="Pointer"
+                                        ToolTip.ShouldUseOverlayLayer="True">
                                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <ListBox Grid.Column="1" Classes="compact" ItemsSource="{Binding Functions}"
+                    <ListBox x:Name="FunctionsList" Grid.Column="1" Classes="compact"
+                             ItemsSource="{Binding Functions}"
                              SelectedItem="{Binding SelectedFunction}"
                              DoubleTapped="OnFunctionDoubleTapped">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="sa:BrowseFunction">
                                 <Border Background="Transparent" Padding="10,0,8,0"
-                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                                    <ToolTip.Tip>
-                                        <ToolTip MaxWidth="960">
-                                            <TextBlock Text="{Binding Signature}" TextWrapping="Wrap"
-                                                       MaxWidth="960" MaxLines="16"
-                                                       TextTrimming="CharacterEllipsis" />
-                                        </ToolTip>
-                                    </ToolTip.Tip>
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                        ToolTip.Tip="{Binding Signature}"
+                                        ToolTip.Placement="Pointer"
+                                        ToolTip.ShouldUseOverlayLayer="True">
                                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Grid>
-                <ListBox Classes="compact" IsVisible="{Binding IsSearching}"
+                <ListBox x:Name="HitsList" Classes="compact" IsVisible="{Binding IsSearching}"
                          ItemsSource="{Binding Hits}" SelectedItem="{Binding SelectedHit}"
                          DoubleTapped="OnFunctionDoubleTapped">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:FunctionHit">
                             <Border Background="Transparent" Padding="10,0,8,0"
-                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-                                <ToolTip.Tip>
-                                    <ToolTip MaxWidth="960">
-                                        <TextBlock Text="{Binding Signature}" TextWrapping="Wrap"
-                                                   MaxWidth="960" MaxLines="16"
-                                                   TextTrimming="CharacterEllipsis" />
-                                    </ToolTip>
-                                </ToolTip.Tip>
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    ToolTip.Tip="{Binding Signature}"
+                                    ToolTip.Placement="Pointer"
+                                    ToolTip.ShouldUseOverlayLayer="True">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Text="{Binding Function.Name}" VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis" />

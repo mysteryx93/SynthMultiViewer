@@ -13,13 +13,15 @@ public class BrowseTests
     [Fact]
     public async Task BrowseAsync_NativePlugin_GroupsNamespace()
     {
-        var factory = Languages(VsNative(new VapourSynthFunction("std", "Crop", "clip:vnode", "clip:vnode;")));
+        var factory = Languages(VsNative(new VapourSynthFunction("std", "Crop", "clip:vnode", "clip:vnode;",
+            "VapourSynth Core Functions")));
 
         var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, "", CancellationToken.None);
 
         var std = Assert.Single(groups, g => g.Name == "std");
         var crop = Assert.Single(std.Functions, f => f.Name == "Crop");
         Assert.Equal("core.std.Crop()", crop.InsertText);
+        Assert.Equal("VapourSynth Core Functions", std.Tip);
     }
 
     [Fact]
@@ -49,6 +51,7 @@ public class BrowseTests
 
         var imported = Assert.Single(groups, g => g.Name == "h");
         Assert.Contains(imported.Functions, f => f.Name == "Foo" && f.InsertText == "h.Foo()");
+        Assert.Equal("module /plugins/helper.py", imported.Tip);
         Assert.DoesNotContain(groups, g => g.Name == "helper");
     }
 
@@ -69,6 +72,7 @@ public class BrowseTests
         var qtgmc = Assert.Single(havs.Functions, f => f.Name == "QTGMC");
         Assert.Equal("havsfunc.QTGMC()", qtgmc.InsertText);
         Assert.Equal("havsfunc", qtgmc.Import);
+        Assert.Equal("module /plugins/havsfunc.py", havs.Tip);
         Assert.DoesNotContain(reply.Items, x => x.InsertionText == "QTGMC");
     }
 
@@ -96,8 +100,9 @@ public class BrowseTests
 
         var imported = Assert.Single(groups, g => g.Name == "h");
         var filter = Assert.Single(imported.Functions, f => f.Name == "Filter");
-        Assert.Equal("h.Filter()", filter.InsertText);
-        Assert.Contains("parameters unknown", filter.Signature, StringComparison.Ordinal);
+        Assert.Equal("h.Filter", filter.InsertText);
+        Assert.Equal("Class", filter.Signature);
+        Assert.DoesNotContain("parameters unknown", filter.Signature, StringComparison.Ordinal);
         Assert.Contains(imported.Functions, f => f.Name == "Foo");
         Assert.DoesNotContain(imported.Functions, f => f.Name == "apply");
     }
@@ -133,8 +138,28 @@ public class BrowseTests
         var imported = Assert.Single(groups, g => g.Name == "h");
         var mode = Assert.Single(imported.Functions, f => f.Name == "MotionMode");
         Assert.Equal("h.MotionMode", mode.InsertText);
-        Assert.Equal("MotionMode: SAD, COHERENCE", mode.Signature);
+        Assert.Equal("Enum: SAD | COHERENCE", mode.Signature);
+        Assert.DoesNotContain("MotionMode", mode.Signature, StringComparison.Ordinal);
         Assert.DoesNotContain("parameters unknown", mode.Signature, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedEnum_DocstringThenMembers()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] =
+                "class _NoSubmoduleRepr:\n    def __repr__(self):\n        return 'x'\n\n" +
+                "class Dither(_NoSubmoduleRepr, str, Enum):\n    \"\"\"\n    Enum for zimg.\n    \"\"\"\n" +
+                "    NONE = 'none'\n    ORDERED = 'ordered'\n    RANDOM = 'random'\n    ERROR_DIFFUSION = 'error_diffusion'\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var dither = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "Dither");
+        Assert.Equal("h.Dither", dither.InsertText);
+        Assert.Equal("Enum: NONE | ORDERED | RANDOM | ERROR_DIFFUSION", dither.Signature);
     }
 
     [Fact]
@@ -170,6 +195,26 @@ public class BrowseTests
     }
 
     [Fact]
+    public async Task BrowseAsync_ImportedTypedDict_UsesFields()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] =
+                "class AnalyzeArgs(TypedDict, total=False):\n    blksize: int | None\n    search: SearchMode | None\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var args = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "AnalyzeArgs");
+        Assert.Equal("h.AnalyzeArgs()", args.InsertText);
+        Assert.Contains("blksize:int", args.Signature, StringComparison.Ordinal);
+        Assert.Contains("search", args.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("parameters unknown", args.Signature, StringComparison.Ordinal);
+        Assert.NotEqual("", args.Signature);
+    }
+
+    [Fact]
     public async Task BrowseAsync_ImportedDataclass_UsesFields()
     {
         const string text = "import helper as h\n";
@@ -188,6 +233,123 @@ public class BrowseTests
         Assert.DoesNotContain("apply", nnedi.Signature, StringComparison.Ordinal);
         Assert.DoesNotContain("parameters unknown", nnedi.Signature, StringComparison.Ordinal);
         Assert.DoesNotContain(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "apply");
+    }
+
+    [Fact]
+    public async Task BrowseAsync_GenericClassInit_UsesConstructorParameters()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "class MixedScalerProcess[T: Scaler, *Ts](Base, abstract=True):\n    def __init__(self, *, function, **kwargs):\n        pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var mixed = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "MixedScalerProcess");
+        Assert.Contains("function", mixed.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("self", mixed.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("parameters unknown", mixed.Signature, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedUnion_UnwrapsNone()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] =
+                "def util(clip: vs.VideoNode, bitdepth: int | None = None) -> vs.VideoNode:\n    pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var util = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "util");
+        Assert.Contains("clip:VideoNode", util.Signature, StringComparison.Ordinal);
+        Assert.Contains("bitdepth:int", util.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("| None", util.Signature, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedNestedUnion_KeepsInnerPipe()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] =
+                "def util(color_family: Iterable[VideoFormatLike | vs.ColorFamily] | None = None):\n    pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var util = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "util");
+        Assert.Contains("Iterable[VideoFormatLike | vs.ColorFamily]", util.Signature, StringComparison.Ordinal);
+        Assert.DoesNotContain("parameters unknown", util.Signature, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("class CustomEnum(Enum):\n    def from_param(self):\n        pass\n", "CustomEnum",
+        "Class bases: Enum")]
+    [InlineData("class Shape(ABC):\n    pass\n", "Shape", "Class bases: ABC")]
+    [InlineData("class Fn(Protocol):\n    pass\n", "Fn", "Class bases: Protocol")]
+    [InlineData("class CustomIntEnum(int, CustomEnum, ReprEnum):\n    pass\n", "CustomIntEnum",
+        "Class bases: int, CustomEnum, ReprEnum")]
+    [InlineData("class Empty(_Hidden, str, Enum):\n    pass\n", "Empty", "Class bases: str, Enum")]
+    [InlineData("class EnumABCMeta(EnumMeta, ABCMeta):\n    pass\n", "EnumABCMeta",
+        "Class bases: EnumMeta, ABCMeta")]
+    [InlineData("class Scaler(Kernel):\n    pass\n", "Scaler", "Class bases: Kernel")]
+    public async Task BrowseAsync_ImportedTypeName_HintsBases(string helper, string name, string hint)
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = helper
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var item = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == name);
+        Assert.Equal("h." + name, item.InsertText);
+        Assert.Equal(hint, item.Signature);
+        Assert.DoesNotContain("parameters unknown", item.Signature, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_ImportedErrorClass_HintsBases()
+    {
+        const string text = "import helper as h\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(new Dictionary<string, string>
+        {
+            ["helper"] = "class CustomValueError(CustomError, ValueError):\n    pass\n"
+        }));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, text, CancellationToken.None);
+
+        var error = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "CustomValueError");
+        Assert.Equal("h.CustomValueError", error.InsertText);
+        Assert.Equal("Class bases: CustomError, ValueError", error.Signature);
+    }
+
+    [Fact]
+    public async Task BrowseAsync_LaterPackage_LoadsAfterWorkBudget()
+    {
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+        var heavy = "";
+        for (var i = 0; i < IncludeCache.ImportWorkLimit; i++)
+        {
+            files["m" + i] = "def F():\n    pass\n";
+            heavy += "import m" + i + "\n";
+        }
+
+        files["heavy"] = heavy;
+        files["late"] = "def Late():\n    pass\n";
+        var factory = Languages(vapoursynthIncludes: FilesReader(files));
+
+        var groups = await factory.BrowseAsync(ScriptLanguageFactory.VapourSynth, "import vapoursynth as vs\n",
+            CancellationToken.None, extraPackages: ["heavy", "late"]);
+
+        var late = Assert.Single(groups, g => g.Name == "late");
+        Assert.Contains(late.Functions, f => f.Name == "Late");
     }
 
     [Fact]

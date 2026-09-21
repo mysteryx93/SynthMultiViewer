@@ -181,6 +181,11 @@ public static class VapourSynthTypes
             return "str";
         }
 
+        if (type.Id.StartsWith("py:", StringComparison.Ordinal))
+        {
+            return type.Id["py:".Length..];
+        }
+
         var ns = NamespaceOf(type);
         if (ns != null)
         {
@@ -219,8 +224,19 @@ public static class VapourSynthTypes
             type = type[..^2];
         }
 
+        if (HasTopLevelPipe(type))
+        {
+            var union = DisplayUnion(type);
+            if (!union.HasValue())
+            {
+                return null;
+            }
+
+            return array ? union + "[]" : union;
+        }
+
         var mapped = FromReturn(type);
-        if (mapped.IsUnknown && type.IndexOf('|') < 0 && type.IndexOf('=') < 0)
+        if (mapped.IsUnknown && type.IndexOf('=') < 0)
         {
             var dot = type.LastIndexOf('.');
             if (dot >= 0 && dot + 1 < type.Length)
@@ -237,6 +253,71 @@ public static class VapourSynthTypes
         }
 
         return array ? display + "[]" : display;
+    }
+
+    private static string? DisplayUnion(string type)
+    {
+        var shown = new List<string>();
+        var start = 0;
+        var depth = 0;
+        for (var i = 0; i <= type.Length; i++)
+        {
+            var c = i < type.Length ? type[i] : '|';
+            if (c is '[' or '(')
+            {
+                depth++;
+                continue;
+            }
+
+            if (c is ']' or ')' && depth > 0)
+            {
+                depth--;
+                continue;
+            }
+
+            if (c != '|' || depth != 0)
+            {
+                continue;
+            }
+
+            var piece = type[start..i].Trim();
+            start = i + 1;
+            if (piece.Length == 0 || piece is "None" or "NoneType")
+            {
+                continue;
+            }
+
+            shown.Add(DisplayReturn(piece) ?? piece);
+        }
+
+        if (shown.Count == 0)
+        {
+            return "None";
+        }
+
+        return string.Join(" | ", shown);
+    }
+
+    private static bool HasTopLevelPipe(string type)
+    {
+        var depth = 0;
+        foreach (var c in type)
+        {
+            if (c is '[' or '(')
+            {
+                depth++;
+            }
+            else if (c is ']' or ')' && depth > 0)
+            {
+                depth--;
+            }
+            else if (c == '|' && depth == 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -262,24 +343,40 @@ public static class VapourSynthTypes
     internal static string DisplayParameter(string parameter)
     {
         var text = parameter.Trim();
-        var colon = text.IndexOf(':');
-        if (colon <= 0 || colon + 1 >= text.Length)
+        var name = ParameterNames.OfPython(text);
+        var type = ParameterNames.PythonType(text);
+        if (!name.HasValue() || !type.HasValue())
         {
             return parameter;
         }
 
-        var name = text[..colon];
-        var rest = text[(colon + 1)..];
-        var extra = rest.IndexOf(':');
-        var type = (extra < 0 ? rest : rest[..extra]).Trim();
-        var flags = extra < 0 ? "" : rest[extra..];
         var display = DisplayType(name, type);
         if (!display.HasValue() || display == type)
         {
             return parameter;
         }
 
-        return name + ":" + display + flags;
+        var eq = ParameterNames.KeywordEqualsIndex(text);
+        var tail = eq >= 0 ? text[eq..] : NativeFlags(text, type);
+        return name + ":" + display + tail;
+    }
+
+    private static string NativeFlags(string text, string type)
+    {
+        var colon = text.IndexOf(':');
+        if (colon < 0)
+        {
+            return "";
+        }
+
+        var rest = text[(colon + 1)..].TrimStart();
+        if (!rest.StartsWith(type, StringComparison.Ordinal))
+        {
+            return "";
+        }
+
+        var after = rest[type.Length..];
+        return after.StartsWith(':') ? after : "";
     }
 
     /// <summary>Copy of <paramref name="symbol"/> with display parameter and return types.</summary>
@@ -320,11 +417,15 @@ public static class VapourSynthTypes
     private const char Param = '\x1f';
     private const string FunctionPrefix = "fn:";
     private const string BoundFunctionPrefix = "fn-bound:";
+    private const string TypeNamePrefix = "tn:";
 
     /// <summary>A snapshot of a resolved plugin, host, or local function not yet called.</summary>
     internal static TypeRef Function(Symbol symbol, bool bound = false)
     {
-        var payload = string.Concat(bound ? BoundFunctionPrefix : FunctionPrefix, symbol.Name, Field,
+        var prefix = bound ? BoundFunctionPrefix
+            : symbol.Kind == SymbolKind.Namespace ? TypeNamePrefix
+            : FunctionPrefix;
+        var payload = string.Concat(prefix, symbol.Name, Field,
             symbol.ReturnType ?? "");
         if (symbol.Parameters == null)
         {
@@ -339,12 +440,14 @@ public static class VapourSynthTypes
     {
         var id = type.Id;
         var prefix = id.StartsWith(BoundFunctionPrefix, StringComparison.Ordinal) ? BoundFunctionPrefix
+            : id.StartsWith(TypeNamePrefix, StringComparison.Ordinal) ? TypeNamePrefix
             : id.StartsWith(FunctionPrefix, StringComparison.Ordinal) ? FunctionPrefix : null;
         if (prefix == null)
         {
             return null;
         }
 
+        var kind = prefix == TypeNamePrefix ? SymbolKind.Namespace : SymbolKind.Function;
         var payload = id[prefix.Length..];
         var first = payload.IndexOf(Field);
         if (first < 0)
@@ -357,13 +460,13 @@ public static class VapourSynthTypes
         if (second < 0)
         {
             var unknownReturn = payload[(first + 1)..];
-            return new(name, null, ReturnType: unknownReturn.Length == 0 ? null : unknownReturn);
+            return new(name, null, kind, ReturnType: unknownReturn.Length == 0 ? null : unknownReturn);
         }
 
         var returnType = payload[(first + 1)..second];
         var joined = payload[(second + 1)..];
         var parameters = joined.Length == 0 ? Array.Empty<string>() : joined.Split(Param);
-        return new(name, parameters, ReturnType: returnType.Length == 0 ? null : returnType);
+        return new(name, parameters, kind, ReturnType: returnType.Length == 0 ? null : returnType);
     }
 
     /// <summary>Gets whether a function alias was taken from a bound plugin.</summary>
