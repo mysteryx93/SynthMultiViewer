@@ -1,7 +1,8 @@
 VapourSynth Multi-Viewer Change Log
 
-v1.4
-- Greatly enhanced text editor with ScriptAssist
+v1.4 (2026-09-21)
+- Greatly enhanced text editor with ScriptAssist: autocomplete, method overloads and hover hints
+- ScriptAssist supports both AviSynth and VapourSynth (works better in AviSynth; Python is extremely complex and untyped by default)
 - Added Functions Explorer
 - Add start page when no document is open
 - Ask save confirmation when closing document
@@ -11,13 +12,6 @@ v1.4
 - Fix horizontal scrollbar page-right
 - Reviewed keyboard shortcuts and improved Help documentation
 - Check for updates
-
-v1.3
-- Enhanced text editor with auto-complete and plugin parameters information, for both VapourSynth and AviSynth
-- '-' and '=' characters are no longer being eaten by the editor
-- Add spacing in editor after line numbers
-- Dark mode is less dark
-- Redesigned seek bar
 
 v1.3 (2026-09-16)
 - Enhanced text editor with auto-complete and plugin parameters information, for both VapourSynth and AviSynth
