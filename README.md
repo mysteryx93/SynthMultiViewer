@@ -2,23 +2,18 @@
 
 **Cross-platform editor and viewer for VapourSynth and AviSynth**
 
-### Why?
+With advanced script editing support, viewer zooming and panning support across tabs.
 
-I was growing tired of the lack of tooling support for VapourSynth, and especially AviSynth, on Linux.
+For VapourSynth/AviSynth, Windows/Linux/MacOS, x64/x86/ARM64.
 
-Comparing script variants is also very time-consuming and difficult without proper tools.
-
-### Support
-
-VapourSynth and AviSynth
-
-x64, Windows x86, and ARM64
-
-Windows, Linux and MacOS
+The app is fully self-contained with no dependency.
 
 ### Features
 
 - Auto-detect VapourSynth and AviSynth library and plugin locations, or customize library and plugin locations
+- ScriptAssist for autocomplete, call insight, and hover hints, for both VapourSynth and AviSynth
+- Functions Explorer of everything available on the system, for both VapourSynth and AviSynth
+- Code highlight for VapourSynth and AviSynth
 - Edit multiple scripts with tabs
 - Run multiple previews at once
 - Zoom and pan to look at details
@@ -27,13 +22,32 @@ Windows, Linux and MacOS
 - Full-screen preview
 - Copy frame to clipboard
 - Video properties window (clip format before display conversion, plus frame properties)
-- Code highlight for VapourSynth and AviSynth
+
+### Screenshots
+
+| | |
+|---|---|
+| [![VapourSynth preview](Screenshots/small/VS-Viewer.webp)](Screenshots/VS-Viewer.webp) | [![AviSynth preview](Screenshots/small/AVS-Viewer.webp)](Screenshots/AVS-Viewer.webp) |
+| [![VapourSynth functions](Screenshots/small/VS-Explorer.webp)](Screenshots/VS-Explorer.webp) | [![AviSynth functions](Screenshots/small/AVS-Explorer.webp)](Screenshots/AVS-Explorer.webp) |
+| [![VapourSynth completion](Screenshots/small/VS-AutoComplete.webp)](Screenshots/VS-AutoComplete.webp) | [![AviSynth parameters](Screenshots/small/AVS-Parameters.webp)](Screenshots/AVS-Parameters.webp) |
+
+### Windows Installation
+
+Run the setup. Make sure you you download the x86 or x64 version depending on the version of AviSynth or VapourSynth you want to run. 
+
+### Linux Installation
+
+Download the AppImage and run it directly.
+
+Optionally, you can use [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) to install the app on first run.
+
+On arch-based distros, you can install from AUR: `synthmultiviewer-appimage`
 
 ### MacOS Installation
 
 Download the ZIP that matches the Mac: `MacOS_arm64` on Apple Silicon, `MacOS_x64` on Intel.
 
-Extract it and drag `SynthMultiViewer.app` into `/Applications`.
+Download and extract the ZIP file to place `SynthMultiViewer.app` into `/Applications`.
 
 The first launch is blocked by Gatekeeper because the build is not notarized. Clear the quarantine flag, including files inside the bundle:
 
@@ -47,13 +61,9 @@ VapourSynth and AviSynth must match that architecture. On Apple Silicon, Homebre
 
 This repo also contains .NET API wrapper for [VapourSynth](ApiVapourSynth/) and [AviSynth](ApiAviSynth/).
 
-Test conventions: [AGENTS.md](AGENTS.md).
-
 ### ScriptAssist
 
 [ScriptAssist](ScriptAssist/README.md) provides completion, call insight, and hover for VapourSynth and AviSynth, with AvaloniaEdit and headless APIs. It analyzes text and supplied catalogs without executing scripts or requiring Python.
-
-This is a very powerful editor. AI was **definitely** used to write this module.
 
 ### License
 
@@ -69,4 +79,4 @@ This is a very powerful editor. AI was **definitely** used to write this module.
 - Pipette — YUV/RGB under the cursor
 - Masks
 - Plane view — Y / U / V (or RGB) as a display mode
-- vS Output view
+- VS Output view
