@@ -34,7 +34,7 @@ The app is fully self-contained with no dependency.
 
 ### Windows Installation
 
-Run the setup. Make sure you you download the x86 or x64 version depending on the version of AviSynth or VapourSynth you want to run. 
+Run the setup. Make sure you download the x86 or x64 version depending on the version of AviSynth or VapourSynth you want to run. 
 
 ### Linux Installation
 
@@ -45,8 +45,6 @@ Optionally, you can use [AppImageLauncher](https://github.com/TheAssassin/AppIma
 On arch-based distros, you can install from AUR: `synthmultiviewer-appimage`
 
 ### MacOS Installation
-
-Download the ZIP that matches the Mac: `MacOS_arm64` on Apple Silicon, `MacOS_x64` on Intel.
 
 Download and extract the ZIP file to place `SynthMultiViewer.app` into `/Applications`.
 
