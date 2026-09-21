@@ -38,7 +38,7 @@ public sealed record Symbol(
                 return ReturnType.HasValue() ? Name + ": " + ReturnType : Name;
             }
 
-            if (Kind == SymbolKind.Namespace)
+            if (Kind is SymbolKind.Namespace or SymbolKind.Enum)
             {
                 if (ReturnType.HasValue() &&
                     !ReturnType.StartsWith("script:", StringComparison.Ordinal))
@@ -84,7 +84,7 @@ public sealed record Symbol(
     internal static string? TipOf(SymbolKind kind, string name, string signature,
         StringComparison comparison = StringComparison.Ordinal)
     {
-        if (kind is SymbolKind.Property or SymbolKind.Local or SymbolKind.Namespace)
+        if (kind is SymbolKind.Property or SymbolKind.Local or SymbolKind.Namespace or SymbolKind.Enum)
         {
             var colon = signature.IndexOf(':');
             if (colon < 0 || colon + 1 >= signature.Length)

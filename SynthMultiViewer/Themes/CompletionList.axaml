@@ -1,0 +1,23 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cc="using:AvaloniaEdit.CodeCompletion">
+    <Styles.Resources>
+        <ControlTheme x:Key="{x:Type cc:CompletionList}" TargetType="cc:CompletionList">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <cc:CompletionListBox Name="PART_ListBox">
+                        <cc:CompletionListBox.ItemTemplate>
+                            <DataTemplate x:DataType="cc:ICompletionData">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image Width="16" Height="16" Margin="0,0,4,0"
+                                           Source="{Binding Image}" />
+                                    <ContentControl Content="{Binding Content}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </cc:CompletionListBox.ItemTemplate>
+                    </cc:CompletionListBox>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+    </Styles.Resources>
+</Styles>

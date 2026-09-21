@@ -155,7 +155,8 @@ internal static class VapourSynthMembers
     private static IReadOnlyList<Symbol>? TypeNameMembers(TypeRef type)
     {
         var snapshot = VapourSynthTypes.FunctionSymbol(type);
-        if (snapshot is not { Kind: SymbolKind.Namespace, Parameters: { Length: > 0 } names })
+        if (snapshot is not { Parameters: { Length: > 0 } names } ||
+            snapshot.Kind is not (SymbolKind.Namespace or SymbolKind.Enum))
         {
             return null;
         }

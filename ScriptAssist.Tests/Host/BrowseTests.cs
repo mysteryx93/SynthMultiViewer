@@ -22,6 +22,7 @@ public class BrowseTests
         var crop = Assert.Single(std.Functions, f => f.Name == "Crop");
         Assert.Equal("core.std.Crop()", crop.InsertText);
         Assert.Equal("VapourSynth Core Functions", std.Tip);
+        Assert.Equal(BrowseGroupKind.Plugin, std.Kind);
     }
 
     [Fact]
@@ -36,6 +37,7 @@ public class BrowseTests
         var foo = Assert.Single(local.Functions, f => f.Name == "Foo");
         Assert.Equal("Foo()", foo.InsertText);
         Assert.Equal(0, foo.Offset);
+        Assert.Equal(BrowseGroupKind.Local, local.Kind);
     }
 
     [Fact]
@@ -52,6 +54,7 @@ public class BrowseTests
         var imported = Assert.Single(groups, g => g.Name == "h");
         Assert.Contains(imported.Functions, f => f.Name == "Foo" && f.InsertText == "h.Foo()");
         Assert.Equal("module /plugins/helper.py", imported.Tip);
+        Assert.Equal(BrowseGroupKind.Module, imported.Kind);
         Assert.DoesNotContain(groups, g => g.Name == "helper");
     }
 
@@ -138,6 +141,7 @@ public class BrowseTests
         var imported = Assert.Single(groups, g => g.Name == "h");
         var mode = Assert.Single(imported.Functions, f => f.Name == "MotionMode");
         Assert.Equal("h.MotionMode", mode.InsertText);
+        Assert.Equal(SymbolKind.Enum, mode.Kind);
         Assert.Equal("Enum: SAD | COHERENCE", mode.Signature);
         Assert.DoesNotContain("MotionMode", mode.Signature, StringComparison.Ordinal);
         Assert.DoesNotContain("parameters unknown", mode.Signature, StringComparison.Ordinal);
@@ -159,6 +163,7 @@ public class BrowseTests
 
         var dither = Assert.Single(Assert.Single(groups, g => g.Name == "h").Functions, f => f.Name == "Dither");
         Assert.Equal("h.Dither", dither.InsertText);
+        Assert.Equal(SymbolKind.Enum, dither.Kind);
         Assert.Equal("Enum: NONE | ORDERED | RANDOM | ERROR_DIFFUSION", dither.Signature);
     }
 
@@ -438,6 +443,8 @@ public class BrowseTests
         var groups = await factory.BrowseAsync(ScriptLanguageFactory.AviSynth, "", CancellationToken.None);
 
         Assert.Equal(["Internal", "Plugin"], groups.Select(group => group.Name));
+        Assert.Equal(BrowseGroupKind.Internal, Assert.Single(groups, group => group.Name == "Internal").Kind);
+        Assert.Equal(BrowseGroupKind.Plugin, Assert.Single(groups, group => group.Name == "Plugin").Kind);
         Assert.Equal(["BlankClip", "Crop"],
             Assert.Single(groups, group => group.Name == "Internal").Functions.Select(item => item.Name));
         Assert.Equal(["FFVideoSource", "zzSource"],

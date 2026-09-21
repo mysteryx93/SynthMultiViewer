@@ -21,6 +21,11 @@ public enum SymbolKind
     Namespace,
 
     /// <summary>
+    /// A type-name with named members, not called.
+    /// </summary>
+    Enum,
+
+    /// <summary>
     /// A native filter, buffer function, or typed member.
     /// </summary>
     Function,

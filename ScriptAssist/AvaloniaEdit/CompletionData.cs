@@ -32,7 +32,7 @@ public sealed class CompletionData : ICompletionData
     }
 
     /// <inheritdoc />
-    public IImage Image => null!;
+    public IImage Image => KindImages.Of(_item.Kind)!;
 
     /// <inheritdoc />
     public string Text => _item.InsertionText;

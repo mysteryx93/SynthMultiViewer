@@ -107,18 +107,19 @@ public sealed class AviSynthLanguage : ILanguage, IPreparedLanguage, IRefreshabl
         plugin.Sort(CompareFunctions);
         autoload.Sort(CompareFunctions);
         var groups = new List<BrowseGroup>();
-        Add(groups, "This file", Calls(bindings.BufferSymbols));
-        Add(groups, "Internal", internalFunctions);
-        Add(groups, "Plugin", plugin);
-        Add(groups, "Autoload", autoload);
+        Add(groups, "This file", Calls(bindings.BufferSymbols), BrowseGroupKind.Local);
+        Add(groups, "Internal", internalFunctions, BrowseGroupKind.Internal);
+        Add(groups, "Plugin", plugin, BrowseGroupKind.Plugin);
+        Add(groups, "Autoload", autoload, BrowseGroupKind.Module);
         return groups;
     }
 
-    private static void Add(List<BrowseGroup> groups, string name, IReadOnlyList<BrowseFunction> functions)
+    private static void Add(List<BrowseGroup> groups, string name, IReadOnlyList<BrowseFunction> functions,
+        BrowseGroupKind kind)
     {
         if (functions.Count > 0)
         {
-            groups.Add(new(name, functions));
+            groups.Add(new(name, functions, Kind: kind));
         }
     }
 

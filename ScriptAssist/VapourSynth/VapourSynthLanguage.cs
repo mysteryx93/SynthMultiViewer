@@ -87,7 +87,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             var functions = Calls(index.Functions(ns.Name, false), ns.Name);
             if (functions.Count > 0)
             {
-                groups.Add(new(ns.Name, functions, ns.Tip));
+                groups.Add(new(ns.Name, functions, ns.Tip, BrowseGroupKind.Plugin));
             }
         }
 
@@ -109,7 +109,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             var functions = ScriptCalls(pair.Key, script, bindings.ScriptModules, token, import: null);
             if (functions.Count > 0)
             {
-                groups.Add(new(pair.Key, functions, ModuleTip(pair.Value)));
+                groups.Add(new(pair.Key, functions, ModuleTip(pair.Value), BrowseGroupKind.Module));
             }
         }
 
@@ -117,7 +117,7 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
         var local = Calls(bindings.BufferSymbols, ns: null, import: null, thisFile: true);
         if (local.Count > 0)
         {
-            groups.Add(new("This file", local));
+            groups.Add(new("This file", local, Kind: BrowseGroupKind.Local));
         }
 
         groups.Sort(CompareGroups);
@@ -388,7 +388,8 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             var functions = ScriptCalls(name, loaded.Value.Id, loaded.Value.Modules, token, name);
             if (functions.Count > 0)
             {
-                groups.Add(new(name, functions, ModuleTip(VapourSynthTypes.Script(loaded.Value.Id))));
+                groups.Add(new(name, functions, ModuleTip(VapourSynthTypes.Script(loaded.Value.Id)),
+                    BrowseGroupKind.Module));
             }
         }
     }
@@ -441,14 +442,15 @@ public sealed class VapourSynthLanguage : ILanguage, IPreparedLanguage, IRefresh
             {
                 var shown = VapourSynthTypes.ForDisplay(symbol);
                 var name = shown.DisplayName;
-                items.Add(new(name, BrowseHint(shown), qualifier + "." + name + "()", import));
+                items.Add(new(name, BrowseHint(shown), qualifier + "." + name + "()", import,
+                    Kind: shown.Kind));
             }
-            else if (symbol.Kind == SymbolKind.Namespace &&
+            else if (symbol.Kind is SymbolKind.Namespace or SymbolKind.Enum &&
                 VapourSynthTypes.ScriptOf(new(symbol.ReturnType ?? "")) == null)
             {
                 var shown = VapourSynthTypes.ForDisplay(symbol);
                 var name = shown.DisplayName;
-                items.Add(new(name, BrowseHint(shown), qualifier + "." + name, import));
+                items.Add(new(name, BrowseHint(shown), qualifier + "." + name, import, Kind: shown.Kind));
             }
 
             var nested = symbol.ReturnType != null ? VapourSynthTypes.ScriptOf(new(symbol.ReturnType)) : null;

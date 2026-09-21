@@ -158,8 +158,9 @@ internal static class VapourSynthClassRanges
             if (members is { Length: > 0 })
             {
                 var choices = string.Join(" | ", members);
-                var hint = IsEnumClass(quoted, span.Start, span.End, name) ? "Enum: " + choices : choices;
-                return new(name, members, SymbolKind.Namespace, ReturnType: hint);
+                var isEnum = IsEnumClass(quoted, span.Start, span.End, name);
+                var hint = isEnum ? "Enum: " + choices : choices;
+                return new(name, members, isEnum ? SymbolKind.Enum : SymbolKind.Namespace, ReturnType: hint);
             }
         }
 

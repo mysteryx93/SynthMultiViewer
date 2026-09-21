@@ -418,11 +418,13 @@ public static class VapourSynthTypes
     private const string FunctionPrefix = "fn:";
     private const string BoundFunctionPrefix = "fn-bound:";
     private const string TypeNamePrefix = "tn:";
+    private const string EnumPrefix = "en:";
 
     /// <summary>A snapshot of a resolved plugin, host, or local function not yet called.</summary>
     internal static TypeRef Function(Symbol symbol, bool bound = false)
     {
         var prefix = bound ? BoundFunctionPrefix
+            : symbol.Kind == SymbolKind.Enum ? EnumPrefix
             : symbol.Kind == SymbolKind.Namespace ? TypeNamePrefix
             : FunctionPrefix;
         var payload = string.Concat(prefix, symbol.Name, Field,
@@ -440,6 +442,7 @@ public static class VapourSynthTypes
     {
         var id = type.Id;
         var prefix = id.StartsWith(BoundFunctionPrefix, StringComparison.Ordinal) ? BoundFunctionPrefix
+            : id.StartsWith(EnumPrefix, StringComparison.Ordinal) ? EnumPrefix
             : id.StartsWith(TypeNamePrefix, StringComparison.Ordinal) ? TypeNamePrefix
             : id.StartsWith(FunctionPrefix, StringComparison.Ordinal) ? FunctionPrefix : null;
         if (prefix == null)
@@ -447,7 +450,9 @@ public static class VapourSynthTypes
             return null;
         }
 
-        var kind = prefix == TypeNamePrefix ? SymbolKind.Namespace : SymbolKind.Function;
+        var kind = prefix == EnumPrefix ? SymbolKind.Enum
+            : prefix == TypeNamePrefix ? SymbolKind.Namespace
+            : SymbolKind.Function;
         var payload = id[prefix.Length..];
         var first = payload.IndexOf(Field);
         if (first < 0)

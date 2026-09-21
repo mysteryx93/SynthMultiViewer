@@ -63,12 +63,17 @@
                              SelectedItem="{Binding SelectedGroup}">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="sa:BrowseGroup">
-                                <Border Background="Transparent" Padding="10,0,8,0"
+                                <Border Background="Transparent" Padding="4,0"
                                         HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                         ToolTip.Tip="{Binding Tip}"
                                         ToolTip.Placement="Pointer"
                                         ToolTip.ShouldUseOverlayLayer="True">
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+                                        <Image Width="16" Height="16" VerticalAlignment="Center"
+                                               Source="{Binding Kind, Converter={x:Static h:SymbolKindImageConverter.Instance}}" />
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -79,12 +84,16 @@
                              DoubleTapped="OnFunctionDoubleTapped">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="sa:BrowseFunction">
-                                <Border Background="Transparent" Padding="10,0,8,0"
+                                <Border Background="Transparent" Padding="4,0"
                                         HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                         ToolTip.Tip="{Binding Signature}"
                                         ToolTip.Placement="Pointer"
                                         ToolTip.ShouldUseOverlayLayer="True">
-                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+                                        <Image Width="16" Height="16" VerticalAlignment="Center"
+                                               Source="{Binding Kind, Converter={x:Static h:SymbolKindImageConverter.Instance}}" />
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                    </StackPanel>
                                 </Border>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -95,15 +104,19 @@
                          DoubleTapped="OnFunctionDoubleTapped">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:FunctionHit">
-                            <Border Background="Transparent" Padding="10,0,8,0"
+                            <Border Background="Transparent" Padding="4,0"
                                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                     ToolTip.Tip="{Binding Signature}"
                                     ToolTip.Placement="Pointer"
                                     ToolTip.ShouldUseOverlayLayer="True">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="{Binding Function.Name}" VerticalAlignment="Center"
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <Image Width="16" Height="16" Margin="0,0,4,0"
+                                           VerticalAlignment="Center"
+                                           Source="{Binding Function.Kind, Converter={x:Static h:SymbolKindImageConverter.Instance}}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Function.Name}"
+                                               VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="1" Text="{Binding Group}" Opacity="0.55"
+                                    <TextBlock Grid.Column="2" Text="{Binding Group}" Opacity="0.55"
                                                Margin="12,0,0,0" VerticalAlignment="Center" />
                                 </Grid>
                             </Border>

@@ -203,11 +203,16 @@ internal static class VapourSynthTypeWalker
             return TypeRef.Unknown;
         }
 
-        if (symbol.Kind == SymbolKind.Namespace)
+        if (symbol.Kind is SymbolKind.Namespace or SymbolKind.Enum)
         {
             if (segment.Kind == PathSegmentKind.Call)
             {
                 return TypeRef.Unknown;
+            }
+
+            if (symbol.Kind == SymbolKind.Enum)
+            {
+                return ApplyMember(symbol, segment, VapourSynthTypes.IsBound(current));
             }
 
             if (current == VapourSynthTypes.Module && segment.Name == "core")

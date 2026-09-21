@@ -676,7 +676,7 @@ public class VapourSynthAssistTests
 
         var item = Assert.Single(service.Analyze(text, text.Length, []).Items, x => x.InsertionText == "MeanMode");
 
-        Assert.Equal(SymbolKind.Namespace, item.Kind);
+        Assert.Equal(SymbolKind.Enum, item.Kind);
         Assert.Equal("Enum: ARITHMETIC | MEDIAN", CompletionData.HintText(item));
     }
 
