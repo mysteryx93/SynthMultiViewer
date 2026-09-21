@@ -22,6 +22,7 @@ The app is fully self-contained with no dependency.
 - Full-screen preview
 - Copy frame to clipboard
 - Video properties window (clip format before display conversion, plus frame properties)
+- Light/Dark theme
 
 ### Screenshots
 
