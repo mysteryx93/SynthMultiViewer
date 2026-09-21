@@ -10,10 +10,10 @@ The app is fully self-contained with no dependency.
 
 ### Features
 
-- Auto-detect VapourSynth and AviSynth library and plugin locations, or customize library and plugin locations
-- ScriptAssist for autocomplete, call insight, and hover hints, for both VapourSynth and AviSynth
-- Functions Explorer of everything available on the system, for both VapourSynth and AviSynth
-- Code highlight for VapourSynth and AviSynth
+- Auto-detect VS/AVS library and plugin locations, or customize locations
+- ScriptAssist for autocomplete, call insight, and hover hints, for both VS/AVS
+- Functions Explorer of everything available on the system, for both VS/AVS
+- Code highlight for VS/AVS
 - Edit multiple scripts with tabs
 - Run multiple previews at once
 - Zoom and pan to look at details
@@ -21,7 +21,7 @@ The app is fully self-contained with no dependency.
 - Rename each tab for reference
 - Full-screen preview
 - Copy frame to clipboard
-- Video properties window (clip format before display conversion, plus frame properties)
+- Video properties window
 - Light/Dark theme
 
 ### Screenshots
