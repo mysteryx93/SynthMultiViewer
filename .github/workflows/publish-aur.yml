@@ -67,11 +67,19 @@ jobs:
             exit 1
           }
 
+          release_base="https://github.com/${{ github.repository }}/releases/download/v${version}"
           asset_x64="SynthMultiViewer-${version}_Linux_x64.AppImage"
-          url_x64="https://github.com/${{ github.repository }}/releases/download/v${version}/${asset_x64}"
+          asset_arm="SynthMultiViewer-${version}_Linux_arm64.AppImage"
+          url_x64="${release_base}/${asset_x64}"
+          url_arm="${release_base}/${asset_arm}"
           curl -fsILo /dev/null "$url_x64" || {
             echo "::error::Release asset not found: $url_x64"
             echo "Publish a GitHub Release that includes the Linux x64 AppImage first."
+            exit 1
+          }
+          curl -fsILo /dev/null "$url_arm" || {
+            echo "::error::Release asset not found: $url_arm"
+            echo "Publish a GitHub Release that includes the Linux arm64 AppImage first."
             exit 1
           }
 
