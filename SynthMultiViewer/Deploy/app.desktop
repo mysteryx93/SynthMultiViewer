@@ -11,4 +11,4 @@ Terminal=${DESKTOP_TERMINAL}
 Categories=${PRIME_CATEGORY};
 MimeType=text/x-vpy;text/x-avs;text/x-avsi;application/x-vapoursynth-script;application/x-avisynth;
 Keywords=VapourSynth;AviSynth;video;script;
-StartupWMClass=SynthMultiViewer
+StartupWMClass=synthmultiviewer

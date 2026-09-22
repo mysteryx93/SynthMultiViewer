@@ -37,8 +37,11 @@ prepare() {
 }
 
 build() {
-    # Adjust .desktop so it will work outside of AppImage container
-    sed -i -E "s|Exec=AppRun|Exec=env DESKTOPINTEGRATION=false /usr/bin/${appid} %u|"\
+    # Pupnet writes Exec=/usr/bin/SynthMultiViewer. prepare() rewrites that path.
+    # Launching the AppImage must not install a second desktop file and icon under ~/.local.
+    sed -i -E "s|^Exec=.*|Exec=env DESKTOPINTEGRATION=false /usr/bin/${appid} %F|" \
+        "squashfs-root/${appid}.desktop"
+    sed -i -E "s|^X-AppImage-Integrate=.*|X-AppImage-Integrate=false|" \
         "squashfs-root/${appid}.desktop"
     # Fix permissions; .AppImage permissions are 700 for all directories
     chmod -R a-x+rX squashfs-root/usr

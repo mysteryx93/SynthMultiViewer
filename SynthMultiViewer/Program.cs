@@ -22,9 +22,18 @@ internal static class Program
     /// <summary>
     /// Configures Avalonia for desktop startup and the previewer.
     /// </summary>
-    public static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<App>()
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        // AppImage starts through an AppRun symlink, so the process name is AppRun.
+        // RESOURCE_NAME is the X11 instance; WmClass is the class. Both must match
+        // StartupWMClass and the desktop file id, or the shell keeps a private icon.
+        Environment.SetEnvironmentVariable("RESOURCE_NAME", DesktopId);
+        return AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .With(new X11PlatformOptions { WmClass = DesktopId })
             .LogToTrace()
             .UseReactiveUI(_ => { });
+    }
+
+    private const string DesktopId = "synthmultiviewer";
 }
