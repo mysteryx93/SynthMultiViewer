@@ -19,7 +19,7 @@ on:
         required: false
         type: string
       pkgrel:
-        description: AUR pkgrel
+        description: AUR pkgrel (1 for a new release, 1.1 for a packaging rebuild of the same release)
         required: false
         type: string
         default: '1'
@@ -62,7 +62,10 @@ jobs:
           [[ -n "$version" ]] || { echo "::error::Could not resolve a release version."; exit 1; }
 
           pkgrel="${INPUT_PKGREL:-1}"
-          [[ "$pkgrel" =~ ^[0-9]+$ ]] || { echo "::error::pkgrel must be an integer: $pkgrel"; exit 1; }
+          [[ "$pkgrel" =~ ^[0-9]+(\.[0-9]+)?$ ]] || {
+            echo "::error::pkgrel must be a number such as 1 or 1.1: $pkgrel"
+            exit 1
+          }
 
           asset_x64="SynthMultiViewer-${version}_Linux_x64.AppImage"
           url_x64="https://github.com/${{ github.repository }}/releases/download/v${version}/${asset_x64}"
@@ -100,5 +103,5 @@ jobs:
           commit_username: ${{ secrets.AUR_USERNAME || 'Hanuman' }}
           commit_email: ${{ secrets.AUR_EMAIL || 'mysteryx93@protonmail.com' }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: Update to v${{ steps.meta.outputs.version }}
+          commit_message: Update to v${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.pkgrel }}
           ssh_keyscan_types: rsa,ecdsa,ed25519
