@@ -19,7 +19,7 @@ on:
         required: false
         type: string
       pkgrel:
-        description: AUR pkgrel (1 for a new release, 1.1 for a packaging rebuild of the same release)
+        description: AUR pkgrel
         required: false
         type: string
         default: '1'
