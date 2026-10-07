@@ -7,7 +7,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Input.Platform;
 using Avalonia.Platform;
 using Avalonia.Threading;
-using HanumanInstitute.ApiVapourSynth;
 using HanumanInstitute.MediaPlayer.Avalonia;
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -518,11 +517,6 @@ public class SynthPlayerHost : PlayerHostBase, IDisposable, ISynthPlayerSink
         _playback?.Unload();
     }
 
-    /// <summary>
-    /// Sets the native script library path before VapourSynth is initialized.
-    /// </summary>
-    public void SetDllPath(string path) => VsHelper.SetDllPath(path);
-
     internal void PresentTestFrame(WriteableBitmap bitmap)
     {
         _bmp = bitmap;
@@ -584,8 +578,7 @@ public class SynthPlayerHost : PlayerHostBase, IDisposable, ISynthPlayerSink
         }
 
         var name = kind == ScriptKind.AviSynth ? "AviSynth" : "VapourSynth";
-        var variable = kind == ScriptKind.AviSynth ? "AVISYNTH_PATH" : "VSSCRIPT_PATH";
-        return $"Could not load {name}. Set {variable} to its library file or directory.";
+        return $"Could not load {name}.";
     }
 
     private int GetThreadCount() => Threads > 0 ? Threads : Environment.ProcessorCount;

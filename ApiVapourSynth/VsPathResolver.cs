@@ -1,22 +1,16 @@
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
-
 namespace HanumanInstitute.ApiVapourSynth;
 
 /// <summary>
-/// Resolves VapourSynth library and plugin locations for the current operating system.
-/// Bundled plugins (pip, site-packages, portable layouts) stay separate from system plugins
-/// (package managers, AUR, <c>/usr/lib/vapoursynth</c>).
-/// Foreign bitness or ISA folders are dropped so autoload cannot crash the host.
+/// Names the VapourSynth script library the process loader opens, and the plugin directories that core already uses.
+/// The registered <c>VSSCRIPT_PATH</c> file is the path <c>vapoursynth config</c> recorded.
+/// A bare name is the fallback FFmpeg opens, and it is not a second search through library directories.
 /// </summary>
 public static class VsPathResolver
 {
-    private static readonly string? InheritedExtraPluginPath =
-        Environment.GetEnvironmentVariable(NativeScriptHosts.VapourSynthScript.ExtraPluginPathEnvironmentVariable);
+    private const string ExtraPluginPathVariable = "VAPOURSYNTH_EXTRA_PLUGIN_PATH";
 
-    private static readonly IReadOnlyList<string> UnixLibraryRoots = OperatingSystem.IsMacOS()
-        ? ["/opt/homebrew/lib", "/usr/local/lib"]
-        : CreateLinuxLibraryRoots();
+    private static readonly string? InheritedExtraPluginPath =
+        Environment.GetEnvironmentVariable(ExtraPluginPathVariable);
 
     /// <summary>
     /// Gets the absolute path used when evaluating a script file.
@@ -24,39 +18,29 @@ public static class VsPathResolver
     public static string ResolveScriptPath(string path) => Path.GetFullPath(path.CheckNotNullOrEmpty());
 
     /// <summary>
-    /// Gets native script-library file names for the current OS.
+    /// Gets the bare library name the process loader opens.
+    /// Linux is <c>libvapoursynth-script.so</c>, macOS is <c>libvapoursynth-script.dylib</c>, and Windows is <c>VSScript.dll</c>.
     /// </summary>
     public static IReadOnlyList<string> LibraryFileNames => NativeScriptHosts.VapourSynthScript.FileNames;
 
     /// <summary>
-    /// Returns candidate paths for the VapourSynth script library.
+    /// Returns the library to open.
+    /// An existing <paramref name="configuredPath"/> replaces the bare name, because that file is the config key.
+    /// A missing path leaves the bare name FFmpeg opens.
     /// </summary>
-    /// <param name="overridePath">An explicit file or directory. When set, only that location is searched.</param>
-    public static IReadOnlyList<string> GetLibraryCandidates(string? overridePath = null)
+    public static IReadOnlyList<string> LibraryCandidates(string? configuredPath, bool configuredFileExists)
     {
-        if (overridePath.HasValue())
+        if (configuredPath.HasText() && configuredFileExists)
         {
-            return ExpandConfiguredPath(overridePath, LibraryFileNames);
+            return [configuredPath];
         }
 
-        var candidates = new List<string>();
-        var envPath = Environment.GetEnvironmentVariable(NativeScriptHosts.VapourSynthScript.PathEnvironmentVariable);
-        if (envPath.HasValue())
-        {
-            candidates.AddRange(ExpandConfiguredPath(envPath, LibraryFileNames));
-        }
-
-        foreach (var directory in GetInstallDirectories())
-        {
-            candidates.AddRange(LibraryFileNames.Select(fileName => Path.Combine(directory, fileName)));
-        }
-
-        candidates.AddRange(LibraryFileNames);
-        return candidates;
+        return LibraryFileNames;
     }
 
     /// <summary>
-    /// Returns an absolute path for a library that was loaded by file name.
+    /// Returns the path of a library the loader already opened.
+    /// A bare name stays a bare name until the loaded module can be named.
     /// </summary>
     public static string ResolveExistingPath(string candidate, IntPtr loadedHandle = 0)
     {
@@ -66,54 +50,22 @@ public static class VsPathResolver
             return Path.GetFullPath(candidate);
         }
 
-        var mapped = ResolveFromProcessMaps(candidate, loadedHandle);
-        if (mapped != null)
-        {
-            return mapped;
-        }
-
-        foreach (var directory in GetInstallDirectories())
-        {
-            foreach (var fileName in DistinctFileNames(candidate))
-            {
-                var full = Path.Combine(directory, fileName);
-                if (File.Exists(full))
-                {
-                    return Path.GetFullPath(full);
-                }
-            }
-        }
-
-        return candidate;
+        return ResolveFromProcessMaps(candidate, loadedHandle) ?? candidate;
     }
 
     /// <summary>
-    /// Returns directories that commonly contain the VapourSynth script library.
-    /// </summary>
-    public static IReadOnlyList<string> GetInstallDirectories()
-    {
-        if (!OperatingSystem.IsWindows()) { return UnixLibraryRoots; }
-        
-        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var directories = new List<string>
-        {
-            Path.Combine(programFiles, "VapourSynth", "core"),
-            Path.Combine(programFiles, "VapourSynth")
-        };
-        directories.AddRange(ReadWindowsRegistryDirectories());
-        return directories;
-
-    }
-
-    /// <summary>
-    /// Returns existing plugin directories, bundled first, then system extras.
+    /// Returns existing plugin directories, bundled first, then the directories the core reads.
     /// </summary>
     public static IReadOnlyList<string> GetPluginDirectories(string? libraryPath) =>
-        FilterDirectories(GetBundledPluginDirectories(libraryPath)
-                .Concat(GetSystemPluginDirectories()).Where(Directory.Exists));
+        GetBundledPluginDirectories(libraryPath)
+            .Concat(GetSystemPluginDirectories())
+            .Where(Directory.Exists)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
     /// <summary>
     /// Returns directories that contain Python script plugins such as havsfunc, not native <c>.so</c> plugins.
+    /// The walk starts at the loaded library and stops after six ancestors.
     /// </summary>
     public static IReadOnlyList<string> GetPythonModuleDirectories(string? libraryPath = null)
     {
@@ -129,11 +81,6 @@ public static class VsPathResolver
                 AddPythonSites(directory, directories, seen);
                 directory = Path.GetDirectoryName(directory);
             }
-        }
-
-        foreach (var root in UnixLibraryRoots)
-        {
-            AddPythonSites(root, directories, seen);
         }
 
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
@@ -159,27 +106,8 @@ public static class VsPathResolver
     }
 
     /// <summary>
-    /// Returns extra plugin directories to inject into VapourSynth.
-    /// Add mode keeps detected system folders; replace mode uses only <paramref name="extraDirectories"/>.
-    /// </summary>
-    public static IReadOnlyList<string> GetExtraPluginDirectories(string? libraryPath, IEnumerable<string>? extraDirectories, bool replace)
-    {
-        var extras = NormalizeDirectories(extraDirectories);
-        if (replace)
-        {
-            return extras;
-        }
-
-        var bundled = GetBundledPluginDirectories(libraryPath).ToHashSet(StringComparer.Ordinal);
-        return FilterDirectories(
-                GetSystemPluginDirectories().Where(Directory.Exists).Where(dir => !bundled.Contains(dir)))
-            .Concat(extras)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-    }
-
-    /// <summary>
-    /// Returns plugin directories shipped with the loaded library (pip, site-packages, portable installs).
+    /// Returns plugin directories shipped beside the loaded library.
+    /// R74 and later autoload <c>vapoursynth/plugins</c> under the package that holds the library.
     /// </summary>
     public static IReadOnlyList<string> GetBundledPluginDirectories(string? libraryPath)
     {
@@ -188,30 +116,31 @@ public static class VsPathResolver
         var libDir = Path.GetDirectoryName(libraryPath);
         if (!libDir.HasValue()) { return []; }
 
+        var beside = new[]
+        {
+            Path.Combine(libDir, "vapoursynth", "plugins"),
+            Path.Combine(libDir, "plugins"),
+            Path.Combine(libDir, "core", "plugins"),
+            Path.Combine(libDir, "vapoursynth")
+        };
         var parent = Directory.GetParent(libDir)?.FullName;
         if (!parent.HasValue())
         {
-            return
-            [
-                Path.Combine(libDir, "vapoursynth", "plugins"),
-                Path.Combine(libDir, "plugins"),
-                Path.Combine(libDir, "core", "plugins")
-            ];
+            return beside;
         }
 
         return
         [
-            Path.Combine(libDir, "vapoursynth", "plugins"),
-            Path.Combine(libDir, "plugins"),
-            Path.Combine(libDir, "core", "plugins"),
+            ..beside,
             Path.Combine(parent, "vapoursynth", "plugins"),
-            Path.Combine(parent, "plugins")
+            Path.Combine(parent, "plugins"),
+            Path.Combine(parent, "vapoursynth")
         ];
     }
 
     /// <summary>
-    /// Returns extra plugin directories from the environment, vapoursynth.conf, and the OS package layout.
-    /// On Linux this includes distro/AUR paths such as <c>/usr/lib/vapoursynth</c> separately from bundled app plugins.
+    /// Returns plugin directories from the extra-path variable, vapoursynth.conf, and the user folders the core reads.
+    /// A missing folder is dropped later, when the caller checks that it exists.
     /// </summary>
     public static IReadOnlyList<string> GetSystemPluginDirectories()
     {
@@ -223,11 +152,6 @@ public static class VsPathResolver
         }
 
         directories.AddRange(ReadConfiguredPluginDirectories());
-        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
-        {
-            directories.AddRange(UnixLibraryRoots.Select(root => Path.Combine(root, "vapoursynth")));
-        }
-
         if (OperatingSystem.IsLinux())
         {
             var dataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
@@ -249,52 +173,8 @@ public static class VsPathResolver
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VapourSynth",
                 Environment.Is64BitProcess ? "plugins64" : "plugins32"));
         }
+
         return directories;
-    }
-
-    internal static IReadOnlyList<string> FilterDirectories(IEnumerable<string> directories) =>
-        FilterDirectories(directories, RuntimeInformation.ProcessArchitecture);
-
-    internal static IReadOnlyList<string> FilterDirectories(IEnumerable<string> directories, Architecture arch)
-    {
-        directories.CheckNotNull();
-        arch.CheckEnumValid();
-        var list = directories.Where(directory => MatchesDirectory(directory, arch)).Distinct(StringComparer.Ordinal).ToList();
-        return !Is64BitArchitecture(arch) ? list : list.Where(directory => !HasLib64Twin(directory, list)).ToList();
-    }
-
-    internal static bool MatchesDirectory(string path, Architecture arch)
-    {
-        path.CheckNotNullOrEmpty();
-        arch.CheckEnumValid();
-        var normalized = Normalize(path);
-        if (IsForeignWindowsFolder(normalized, arch)) { return false; }
-
-        var is64Bit = Is64BitArchitecture(arch);
-        return !normalized.Split('/', StringSplitOptions.RemoveEmptyEntries)
-            .Any(segment => IsForeignSegment(segment, arch, is64Bit));
-    }
-
-    internal static string? LinuxMultiarchDirectory(Architecture arch) => arch switch
-    {
-        Architecture.X64 => "/usr/lib/x86_64-linux-gnu",
-        Architecture.X86 => "/usr/lib/i386-linux-gnu",
-        Architecture.Arm64 => "/usr/lib/aarch64-linux-gnu",
-        Architecture.Arm or Architecture.Armv6 => "/usr/lib/arm-linux-gnueabihf",
-        _ => null
-    };
-
-    internal static bool Is64BitArchitecture(Architecture arch) => arch is
-        Architecture.X64 or Architecture.Arm64 or Architecture.S390x
-        or Architecture.Ppc64le or Architecture.LoongArch64 or Architecture.RiscV64;
-
-    internal static IReadOnlyList<string> ExpandConfiguredPath(string path, IReadOnlyList<string> fileNames)
-    {
-        if (File.Exists(path) || !Directory.Exists(path)) { return [path]; }
-
-        var candidates = new List<string>(fileNames.Count);
-        candidates.AddRange(fileNames.Select(fileName => Path.Combine(path, fileName)));
-        return candidates;
     }
 
     private static void AddPythonSites(string? root, List<string> directories, HashSet<string> seen)
@@ -339,28 +219,6 @@ public static class VsPathResolver
         directories.Add(path);
     }
 
-    private static IReadOnlyList<string> CreateLinuxLibraryRoots()
-    {
-        var roots = new List<string> { "/usr/lib" };
-        if (Environment.Is64BitProcess)
-        {
-            roots.Add("/usr/lib64");
-        }
-
-        var multiarch = LinuxMultiarchDirectory(RuntimeInformation.ProcessArchitecture);
-        if (multiarch != null)
-        {
-            roots.Add(multiarch);
-        }
-
-        roots.Add("/usr/local/lib");
-        return roots;
-    }
-
-    private static IReadOnlyList<string> NormalizeDirectories(IEnumerable<string>? directories) =>
-        (directories ?? []).Where(dir => dir.HasValue()).Select(dir => dir.Trim())
-        .Distinct(StringComparer.Ordinal).ToList();
-
     private static IReadOnlyList<string> DistinctFileNames(string candidate)
     {
         var names = new List<string>();
@@ -377,9 +235,11 @@ public static class VsPathResolver
                 names.Add(name);
             }
         }
+
         return names;
     }
 
+    // Linux records the opened module in /proc/self/maps. Other systems keep the candidate.
     private static string? ResolveFromProcessMaps(string candidate, IntPtr loadedHandle)
     {
         if (loadedHandle == IntPtr.Zero || !OperatingSystem.IsLinux() || !File.Exists("/proc/self/maps"))
@@ -399,49 +259,8 @@ public static class VsPathResolver
                 return Path.GetFullPath(path);
             }
         }
+
         return null;
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static IReadOnlyList<string> ReadWindowsRegistryDirectories()
-    {
-        if (!OperatingSystem.IsWindows()) { return []; }
-
-        string[] hives = ["HKEY_CURRENT_USER", "HKEY_LOCAL_MACHINE"];
-        var directories = new List<string>();
-        foreach (var hive in hives)
-        {
-            var dll = GetRegistryString(hive, @"SOFTWARE\VapourSynth", "VSScriptDLL");
-            if (dll.HasValue())
-            {
-                var dir = Path.GetDirectoryName(dll);
-                if (dir.HasValue())
-                {
-                    directories.Add(dir);
-                }
-            }
-
-            var root = GetRegistryString(hive, @"SOFTWARE\VapourSynth", "Path");
-            if (root.HasValue())
-            {
-                directories.Add(Path.Combine(root, "core"));
-                directories.Add(root);
-            }
-        }
-        return directories;
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static string GetRegistryString(string hive, string key, string value)
-    {
-        try
-        {
-            return Microsoft.Win32.Registry.GetValue($@"{hive}\{key}", value, null) as string ?? string.Empty;
-        }
-        catch
-        {
-            return string.Empty;
-        }
     }
 
     private static IReadOnlyList<string> ReadConfiguredPluginDirectories()
@@ -482,36 +301,7 @@ public static class VsPathResolver
                 directories.Add(value);
             }
         }
+
         return directories;
     }
-
-    private static bool IsForeignWindowsFolder(string normalized, Architecture arch) =>
-        (normalized.Contains("program files (x86)", StringComparison.Ordinal) && arch != Architecture.X86)
-        || (normalized.Contains("program files (arm)", StringComparison.Ordinal)
-            && arch is not (Architecture.Arm or Architecture.Armv6));
-
-    private static bool IsForeignSegment(string segment, Architecture arch, bool is64Bit) => segment switch
-    {
-        "plugins32" or "lib32" or "syswow64" => is64Bit,
-        "plugins64" or "lib64" or "libx32" => !is64Bit,
-        "x86_64-linux-gnu" => arch != Architecture.X64,
-        "i386-linux-gnu" or "i686-linux-gnu" => arch != Architecture.X86,
-        "aarch64-linux-gnu" => arch != Architecture.Arm64,
-        "arm-linux-gnueabihf" or "arm-linux-gnueabi" => arch is not (Architecture.Arm or Architecture.Armv6),
-        _ => false
-    };
-
-    private static bool HasLib64Twin(string directory, IReadOnlyList<string> directories)
-    {
-        var normalized = Normalize(directory);
-        if (normalized.Contains("-linux-gnu", StringComparison.Ordinal)) { return false; }
-
-        var index = normalized.IndexOf("/lib/", StringComparison.OrdinalIgnoreCase);
-        if (index < 0) { return false; }
-
-        var twin = string.Concat(normalized.AsSpan(0, index), "/lib64/", normalized.AsSpan(index + "/lib/".Length));
-        return directories.Any(other => Normalize(other).Equals(twin, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static string Normalize(string path) => path.Replace('\\', '/').TrimEnd('/').ToLowerInvariant();
 }

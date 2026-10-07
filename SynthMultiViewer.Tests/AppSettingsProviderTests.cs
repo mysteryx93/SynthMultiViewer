@@ -34,28 +34,16 @@ public class AppSettingsProviderTests
     }
 
     [Fact]
-    public void Save_RoundTrip_PersistsLibraryPaths()
+    public void Save_RoundTrip_PersistsThreadCount()
     {
         var files = new FakeFileSystemService();
         var provider = CreateProvider(files);
-        provider.Value.VapourSynthPath = "/opt/vs";
-        provider.Value.VapourSynthPluginFolders = "/opt/vs/plugins";
-        provider.Value.VapourSynthReplacePlugins = true;
-        provider.Value.AviSynthPath = "/opt/avs";
-        provider.Value.AviSynthPluginFolders = "/opt/avs/plugins";
         provider.Value.VapourSynthThreads = 8;
 
         provider.Save();
         var loaded = CreateProvider(files).Load();
 
-        Assert.Equal("/opt/vs", loaded.VapourSynthPath);
-        Assert.Equal("/opt/vs/plugins", loaded.VapourSynthPluginFolders);
-        Assert.True(loaded.VapourSynthReplacePlugins);
-        Assert.Equal("/opt/avs", loaded.AviSynthPath);
-        Assert.Equal("/opt/avs/plugins", loaded.AviSynthPluginFolders);
-        Assert.False(loaded.AviSynthReplacePlugins);
         Assert.Equal(8, loaded.VapourSynthThreads);
-        Assert.True(loaded.EnhanceEditorWithAutoComplete);
     }
 
     [Fact]

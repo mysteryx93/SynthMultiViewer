@@ -89,7 +89,7 @@ Include cache lifecycle is documented in README; parsed exports and failed path 
 - Pass `documentPath` through `GetAsync`/`Bind`. Unsaved buffers lack a sibling directory but can use configured roots. Python site-packages belongs in script search roots, never native autoload directories.
 - `EditorAssist` owns attach/detach, cancellation, debounce, and stale-result rejection; presenters own popups. It takes `IAssistSession`, not `Func` catalogs or path callbacks. Keep parser internals out of wrap-size options; exposing `Reply` is sufficient. No Splat registration helper.
 
-Reference host: `ScriptAssistService` passes native dump adapters, `AviSynthPluginDirectory`, and include sources into the factory. `FrameworkDetectionService` configures keys after native setup; the factory must not call `VsHelper.SetDllPath`. `EnhanceEditorWithAutoComplete` is the enablement setting; `BindableTextEditor` implements `IAssistSession` and maps `ScriptKind` to factory ids.
+Reference host: `ScriptAssistService` passes native dump adapters, `AviSynthPluginDirectory`, and include sources into the factory. `FrameworkDetectionService` configures keys after the process loader has opened the system library; the factory must not load that library. `EnhanceEditorWithAutoComplete` is the enablement setting; `BindableTextEditor` implements `IAssistSession` and maps `ScriptKind` to factory ids.
 
 ## Analysis notes
 

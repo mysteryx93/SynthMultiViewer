@@ -1,23 +1,12 @@
 namespace HanumanInstitute.ApiVapourSynth;
 
 /// <summary>
-/// Configures VapourSynth discovery and provides native image-copy utilities.
+/// Provides native image-copy utilities and the plugin directories the loaded core already uses.
 /// </summary>
 public static class VsHelper
 {
     /// <summary>
-    /// Sets the VapourSynth script-library file or directory before loading a script.
-    /// </summary>
-    public static void SetDllPath(string path) => VsInvoke.SetDllPath(path);
-
-    /// <summary>
-    /// Sets extra plugin folders. Add mode keeps detected folders; replace uses only these folders.
-    /// </summary>
-    public static void SetPluginFolders(IEnumerable<string>? folders, bool replace = false) =>
-        NativeLibraryLocator.SetPluginFolders(folders, replace);
-
-    /// <summary>
-    /// Returns detected plugin directories for the specified library path.
+    /// Returns plugin directories the loaded core already uses.
     /// </summary>
     public static IReadOnlyList<string> GetPluginDirectories(string? libraryPath = null) =>
         VsPathResolver.GetPluginDirectories(libraryPath);

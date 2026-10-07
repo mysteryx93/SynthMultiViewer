@@ -18,7 +18,6 @@ public static class AvsCatalog
         }
         try
         {
-            native.ApplyPluginFolders(env);
             if (native.FunctionExists(env, "AutoloadPlugins"))
             {
                 var value = native.Invoke(env, "AutoloadPlugins");

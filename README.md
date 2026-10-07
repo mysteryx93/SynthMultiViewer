@@ -10,7 +10,7 @@ The app is fully self-contained with no dependency.
 
 ### Features
 
-- Auto-detect VS/AVS library and plugin locations, or customize locations
+- Loads the installed AviSynth library the same way FFmpeg does, loads the VapourSynth library registered by `vapoursynth register-install`, and lists the plugin folders those cores already use
 - ScriptAssist for autocomplete, call insight, and hover hints, for both VS/AVS
 - Functions Explorer of everything available on the system, for both VS/AVS
 - Code highlight for VS/AVS

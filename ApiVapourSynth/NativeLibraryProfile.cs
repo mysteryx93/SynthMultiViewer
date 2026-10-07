@@ -9,6 +9,4 @@ internal sealed class NativeLibraryProfile
     public required string ImportName { get; init; }
     public required IReadOnlyList<string> FileNames { get; init; }
     public required IReadOnlyList<string> RequiredExports { get; init; }
-    public string PathEnvironmentVariable { get; init; } = "";
-    public string ExtraPluginPathEnvironmentVariable { get; init; } = "";
 }

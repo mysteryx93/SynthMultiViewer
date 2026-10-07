@@ -64,15 +64,11 @@ internal static class TestSupport
     public static SettingsViewModel CreateSettings(
         ISettingsProvider<AppSettingsData>? settings = null,
         IAppTheme? theme = null,
-        IFrameworkDetectionService? detection = null,
-        IDialogService? dialogs = null,
-        IFileSystemService? files = null) =>
+        IFrameworkDetectionService? detection = null) =>
         new(
             settings ?? new MemorySettingsProvider(),
             theme ?? new MemoryAppTheme(),
-            detection ?? new MemoryFrameworkDetection(),
-            dialogs ?? CreateDialogs(),
-            files ?? new FakeFileSystemService());
+            detection ?? new MemoryFrameworkDetection());
 
     public static object CreateViewModel(
         Type type, ISettingsProvider<AppSettingsData>? settings = null, IAppTheme? theme = null)

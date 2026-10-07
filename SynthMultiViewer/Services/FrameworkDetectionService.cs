@@ -1,25 +1,22 @@
 using HanumanInstitute.ApiAviSynth;
 using HanumanInstitute.ApiVapourSynth;
-using HanumanInstitute.ScriptAssist.Services;
+using HanumanInstitute.ScriptAssist;
 using HanumanInstitute.SynthMultiViewer.Models;
 
 namespace HanumanInstitute.SynthMultiViewer.Services;
 
 /// <summary>
-/// Applies configured library and plugin paths and probes native script engines.
+/// Probes the VapourSynth and AviSynth libraries the process loader opens.
 /// </summary>
 public sealed class FrameworkDetectionService : IFrameworkDetectionService
 {
-    private readonly IFileSystemService _files;
     private readonly IScriptLanguageFactory? _languages;
 
     /// <summary>
-    /// Creates a detector that applies paths and refreshes script-assist catalogs.
+    /// Creates a detector that probes the system libraries and refreshes script-assist catalogs.
     /// </summary>
-    public FrameworkDetectionService(ISettingsProvider<AppSettingsData> settings, IFileSystemService files,
-        IScriptLanguageFactory? languages = null)
+    public FrameworkDetectionService(ISettingsProvider<AppSettingsData> settings, IScriptLanguageFactory? languages = null)
     {
-        _files = files.CheckNotNull();
         _languages = languages;
         Apply(settings.Value);
     }
@@ -33,13 +30,6 @@ public sealed class FrameworkDetectionService : IFrameworkDetectionService
     /// <inheritdoc />
     public void Apply(AppSettingsData settings)
     {
-        VsHelper.SetDllPath(settings.VapourSynthPath);
-        VsHelper.SetPluginFolders(
-            FolderListText.Parse(settings.VapourSynthPluginFolders, _files.Path), settings.VapourSynthReplacePlugins);
-        AvsScript.SetDllPath(settings.AviSynthPath);
-        AvsScript.SetPluginFolders(
-            FolderListText.Parse(settings.AviSynthPluginFolders, _files.Path), settings.AviSynthReplacePlugins);
-
         var vapourSynthFound = VsHelper.TryFindLibrary(out var vapourSynthPath);
         var vapourSynthUsable = VsHelper.TryEvaluate(out var vapourSynthError);
         string? vapourSynthVersion = null;
@@ -50,7 +40,7 @@ public sealed class FrameworkDetectionService : IFrameworkDetectionService
         }
 
         VapourSynth = CreateInstall(
-            vapourSynthFound, vapourSynthUsable, vapourSynthPath, settings.VapourSynthPath,
+            vapourSynthFound, vapourSynthUsable, vapourSynthPath,
             VsHelper.GetPluginDirectories(vapourSynthPath), vapourSynthError,
             vapourSynthVersion, vapourSynthDetail);
 
@@ -64,7 +54,7 @@ public sealed class FrameworkDetectionService : IFrameworkDetectionService
         }
 
         AviSynth = CreateInstall(
-            aviSynthFound, aviSynthUsable, aviSynthPath, settings.AviSynthPath,
+            aviSynthFound, aviSynthUsable, aviSynthPath,
             AvsScript.GetPluginDirectories(aviSynthPath), aviSynthError,
             aviSynthVersion, aviSynthDetail);
 
@@ -74,18 +64,12 @@ public sealed class FrameworkDetectionService : IFrameworkDetectionService
         }
 
         _languages.IsEnabled = settings.EnhanceEditorWithAutoComplete;
-        _languages.Configure(
-            ScriptLanguageFactory.VapourSynth,
-            string.Join("\0", settings.VapourSynthPath, settings.VapourSynthPluginFolders,
-                settings.VapourSynthReplacePlugins));
-        _languages.Configure(
-            ScriptLanguageFactory.AviSynth,
-            string.Join("\0", settings.AviSynthPath, settings.AviSynthPluginFolders,
-                settings.AviSynthReplacePlugins));
+        _languages.Configure(ScriptLanguageFactory.VapourSynth, vapourSynthPath ?? "");
+        _languages.Configure(ScriptLanguageFactory.AviSynth, aviSynthPath ?? "");
     }
 
     private static FrameworkInstall CreateInstall(
-        bool found, bool usable, string? libraryPath, string configuredPath,
+        bool found, bool usable, string? libraryPath,
         IReadOnlyList<string> pluginDirectories, string? error,
         string? version = null, string? versionDetail = null)
     {
@@ -101,13 +85,6 @@ public sealed class FrameworkDetectionService : IFrameworkDetectionService
             return new(
                 FrameworkStatus.Error, libraryPath, pluginDirectories,
                 FirstMessage(error, "The library could not run a script."));
-        }
-
-        if (configuredPath.HasText())
-        {
-            return new(
-                FrameworkStatus.Error, libraryPath, pluginDirectories,
-                FirstMessage(error, "Could not load from '" + configuredPath.Trim() + "'."));
         }
 
         return new(FrameworkStatus.NotFound, libraryPath, pluginDirectories);

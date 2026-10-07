@@ -1,5 +1,8 @@
 VapourSynth Multi-Viewer Change Log
 
+v1.5 (2026-10-07)
+- Remove custom paths so path resolution matches ffmpeg, avs2yuv and vspipe
+
 v1.4 (2026-09-21)
 - Greatly enhanced text editor with ScriptAssist: autocomplete, method overloads and hover hints
 - ScriptAssist supports both AviSynth and VapourSynth (works better in AviSynth; Python is extremely complex and untyped by default)

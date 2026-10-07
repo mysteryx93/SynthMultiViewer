@@ -3,7 +3,6 @@ using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
-using HanumanInstitute.MvvmDialogs.FrameworkDialogs;
 using HanumanInstitute.SynthMultiViewer.Models;
 using HanumanInstitute.SynthMultiViewer.Services;
 using HanumanInstitute.SynthMultiViewer.Views;
@@ -74,12 +73,6 @@ public class SettingsViewModelTests
         ((ICommand)model.RestoreDefault).Execute(null);
 
         Assert.Equal(AppTheme.Light, model.Theme);
-        Assert.Equal("", model.VapourSynthPath);
-        Assert.Equal("", model.VapourSynthPluginFolders);
-        Assert.False(model.VapourSynthReplacePlugins);
-        Assert.Equal("", model.AviSynthPath);
-        Assert.Equal("", model.AviSynthPluginFolders);
-        Assert.False(model.AviSynthReplacePlugins);
         Assert.True(model.EnhanceEditorWithAutoComplete);
         Assert.Equal(Environment.ProcessorCount, model.VapourSynthThreads);
         Assert.Equal(UpdateInterval.Biweekly, model.CheckForUpdates);
@@ -116,33 +109,17 @@ public class SettingsViewModelTests
     [Fact]
     public void Constructor_FrameworkStatus_UsesDetectionResults()
     {
-        var settings = new TestSupport.MemorySettingsProvider
-        {
-            Value =
-            {
-                VapourSynthPath = "/opt/vs",
-                VapourSynthPluginFolders = "/opt/vs/plugins",
-                VapourSynthReplacePlugins = true,
-                AviSynthPath = "/opt/avs",
-                AviSynthPluginFolders = "/opt/avs/plugins"
-            }
-        };
         var detection = new TestSupport.MemoryFrameworkDetection
         {
-            VapourSynth = new(FrameworkStatus.Detected, "/opt/vs/libvsscript.so", Version: "R65"),
+            VapourSynth = new(FrameworkStatus.Detected, "/usr/lib/libvapoursynth-script.so", Version: "R65"),
             AviSynth = new(false)
         };
 
-        var model = TestSupport.CreateSettings(settings, detection: detection);
+        var model = TestSupport.CreateSettings(detection: detection);
 
         Assert.True(model.VapourSynthFound);
         Assert.False(model.AviSynthFound);
-        Assert.Equal("/opt/vs", model.VapourSynthPath);
-        Assert.Equal("/opt/vs/plugins", model.VapourSynthPluginFolders);
-        Assert.True(model.VapourSynthReplacePlugins);
-        Assert.Equal("/opt/avs", model.AviSynthPath);
-        Assert.Equal("/opt/avs/plugins", model.AviSynthPluginFolders);
-        Assert.Equal("/opt/vs/libvsscript.so", model.VapourSynthLibraryDisplay);
+        Assert.Equal("/usr/lib/libvapoursynth-script.so", model.VapourSynthLibraryDisplay);
         Assert.Equal("(Detected R65)", model.VapourSynthStatus);
         Assert.Equal("(Not Found)", model.AviSynthStatus);
     }
@@ -212,30 +189,6 @@ public class SettingsViewModelTests
     }
 
     [Fact]
-    public void Ok_LibraryPathsEntered_SavesAndAppliesPaths()
-    {
-        var settings = new TestSupport.MemorySettingsProvider();
-        var detection = new TestSupport.MemoryFrameworkDetection();
-        var model = TestSupport.CreateSettings(settings, detection: detection);
-        model.VapourSynthPath = " /opt/vs ";
-        model.VapourSynthPluginFolders = " /opt/vs/plugins ";
-        model.VapourSynthReplacePlugins = true;
-        model.AviSynthPath = "/opt/avs";
-        model.AviSynthPluginFolders = "/opt/avs/plugins";
-
-        ((ICommand)model.Ok).Execute(null);
-
-        Assert.Equal("/opt/vs", settings.Value.VapourSynthPath);
-        Assert.Equal("/opt/vs/plugins", settings.Value.VapourSynthPluginFolders);
-        Assert.True(settings.Value.VapourSynthReplacePlugins);
-        Assert.Equal("/opt/avs", settings.Value.AviSynthPath);
-        Assert.Equal("/opt/avs/plugins", settings.Value.AviSynthPluginFolders);
-        Assert.Equal("/opt/vs", detection.LastApplied!.VapourSynthPath);
-        Assert.Equal("/opt/avs", detection.LastApplied.AviSynthPath);
-        Assert.True(detection.LastApplied.VapourSynthReplacePlugins);
-    }
-
-    [Fact]
     public void Ok_VapourSynthThreadsEntered_SavesThreadCount()
     {
         var settings = new TestSupport.MemorySettingsProvider();
@@ -274,86 +227,5 @@ public class SettingsViewModelTests
         Assert.Equal(6, box.Value);
         Assert.Equal(6, model.VapourSynthThreads);
         Assert.False(DataValidationErrors.GetHasErrors(box));
-    }
-
-    [Fact]
-    public async Task BrowseVapourSynthLibrary_Select_SetsPath()
-    {
-        var dialogs = new TestSupport.FakeDialogManager();
-        dialogs.ReturnFile("/opt/vs/libvsscript.so");
-        var model = TestSupport.CreateSettings(dialogs: TestSupport.CreateDialogs(manager: dialogs));
-
-        await model.BrowseVapourSynthLibrary.Execute();
-
-        Assert.Equal("/opt/vs/libvsscript.so", model.VapourSynthPath);
-        Assert.IsType<OpenFileDialogSettings>(dialogs.LastFrameworkSettings);
-        Assert.Equal(1, dialogs.FrameworkDialogCount);
-    }
-
-    [Fact]
-    public async Task BrowseVapourSynthLibrary_Cancel_KeepsPath()
-    {
-        var dialogs = new TestSupport.FakeDialogManager();
-        dialogs.ReturnFile(null);
-        var model = TestSupport.CreateSettings(dialogs: TestSupport.CreateDialogs(manager: dialogs));
-        model.VapourSynthPath = "/keep";
-
-        await model.BrowseVapourSynthLibrary.Execute();
-
-        Assert.Equal("/keep", model.VapourSynthPath);
-        Assert.Equal(1, dialogs.FrameworkDialogCount);
-    }
-
-    [Fact]
-    public async Task BrowseVapourSynthPlugins_Select_AppendsFolder()
-    {
-        var dialogs = new TestSupport.FakeDialogManager();
-        dialogs.ReturnFolder("/opt/vs/plugins2");
-        var model = TestSupport.CreateSettings(dialogs: TestSupport.CreateDialogs(manager: dialogs));
-        model.VapourSynthPluginFolders = "/opt/vs/plugins";
-
-        await model.BrowseVapourSynthPlugins.Execute();
-
-        Assert.Equal("/opt/vs/plugins; /opt/vs/plugins2", model.VapourSynthPluginFolders);
-        Assert.IsType<OpenFolderDialogSettings>(dialogs.LastFrameworkSettings);
-    }
-
-    [Fact]
-    public async Task BrowseVapourSynthPlugins_SelectExisting_DoesNotDuplicate()
-    {
-        var dialogs = new TestSupport.FakeDialogManager();
-        dialogs.ReturnFolder("/opt/vs/plugins");
-        var model = TestSupport.CreateSettings(dialogs: TestSupport.CreateDialogs(manager: dialogs));
-        model.VapourSynthPluginFolders = "/opt/vs/plugins";
-
-        await model.BrowseVapourSynthPlugins.Execute();
-
-        Assert.Equal("/opt/vs/plugins", model.VapourSynthPluginFolders);
-    }
-
-    [Fact]
-    public async Task BrowseAviSynthLibrary_Select_SetsPath()
-    {
-        var dialogs = new TestSupport.FakeDialogManager();
-        dialogs.ReturnFile("/opt/avs/libavisynth.so");
-        var model = TestSupport.CreateSettings(dialogs: TestSupport.CreateDialogs(manager: dialogs));
-
-        await model.BrowseAviSynthLibrary.Execute();
-
-        Assert.Equal("/opt/avs/libavisynth.so", model.AviSynthPath);
-        Assert.IsType<OpenFileDialogSettings>(dialogs.LastFrameworkSettings);
-    }
-
-    [Fact]
-    public async Task BrowseAviSynthPlugins_Select_AppendsFolder()
-    {
-        var dialogs = new TestSupport.FakeDialogManager();
-        dialogs.ReturnFolder("/opt/avs/plugins");
-        var model = TestSupport.CreateSettings(dialogs: TestSupport.CreateDialogs(manager: dialogs));
-
-        await model.BrowseAviSynthPlugins.Execute();
-
-        Assert.Equal("/opt/avs/plugins", model.AviSynthPluginFolders);
-        Assert.IsType<OpenFolderDialogSettings>(dialogs.LastFrameworkSettings);
     }
 }

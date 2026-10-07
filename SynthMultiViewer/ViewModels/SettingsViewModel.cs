@@ -1,7 +1,4 @@
 using HanumanInstitute.MvvmDialogs;
-using HanumanInstitute.MvvmDialogs.FileSystem;
-using HanumanInstitute.MvvmDialogs.FrameworkDialogs;
-using HanumanInstitute.ScriptAssist.Services;
 using HanumanInstitute.SynthMultiViewer.Models;
 using HanumanInstitute.SynthMultiViewer.Services;
 
@@ -15,29 +12,19 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     private readonly ISettingsProvider<AppSettingsData> _settingsProvider;
     private readonly IAppTheme _appTheme;
     private readonly IFrameworkDetectionService _frameworks;
-    private readonly IDialogService _dialogService;
-    private readonly IFileSystemService _files;
 
     /// <summary>
-    /// Creates a settings dialog with a working copy of the current theme and library paths.
+    /// Creates a settings dialog with a working copy of the current theme and engine options.
     /// </summary>
     public SettingsViewModel(ISettingsProvider<AppSettingsData> settingsProvider, IAppTheme appTheme,
-        IFrameworkDetectionService frameworks, IDialogService dialogService, IFileSystemService files)
+        IFrameworkDetectionService frameworks)
     {
         _settingsProvider = settingsProvider;
         _appTheme = appTheme;
         _frameworks = frameworks;
-        _dialogService = dialogService;
-        _files = files.CheckNotNull();
         DisplayName = "Settings";
         Theme = settingsProvider.Value.Theme;
-        VapourSynthPath = settingsProvider.Value.VapourSynthPath;
-        VapourSynthPluginFolders = settingsProvider.Value.VapourSynthPluginFolders;
-        VapourSynthReplacePlugins = settingsProvider.Value.VapourSynthReplacePlugins;
         VapourSynthThreads = EffectiveThreads(settingsProvider.Value.VapourSynthThreads);
-        AviSynthPath = settingsProvider.Value.AviSynthPath;
-        AviSynthPluginFolders = settingsProvider.Value.AviSynthPluginFolders;
-        AviSynthReplacePlugins = settingsProvider.Value.AviSynthReplacePlugins;
         EnhanceEditorWithAutoComplete = settingsProvider.Value.EnhanceEditorWithAutoComplete;
         CheckForUpdates = settingsProvider.Value.CheckForUpdates;
         ApplyDetection(_frameworks.VapourSynth, _frameworks.AviSynth);
@@ -77,46 +64,10 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     ];
 
     /// <summary>
-    /// Gets or sets an optional VapourSynth library file or directory.
-    /// </summary>
-    [Reactive]
-    public partial string VapourSynthPath { get; set; } = "";
-
-    /// <summary>
-    /// Gets or sets extra VapourSynth plugin folders, separated by semicolons.
-    /// </summary>
-    [Reactive]
-    public partial string VapourSynthPluginFolders { get; set; } = "";
-
-    /// <summary>
-    /// Gets or sets whether auto-detected VapourSynth plugin folders are skipped.
-    /// </summary>
-    [Reactive]
-    public partial bool VapourSynthReplacePlugins { get; set; }
-
-    /// <summary>
     /// Gets or sets the VapourSynth worker count used when multi-threading is enabled.
     /// </summary>
     [Reactive]
     public partial int VapourSynthThreads { get; set; }
-
-    /// <summary>
-    /// Gets or sets an optional AviSynth library file or directory.
-    /// </summary>
-    [Reactive]
-    public partial string AviSynthPath { get; set; } = "";
-
-    /// <summary>
-    /// Gets or sets extra AviSynth plugin folders, separated by semicolons.
-    /// </summary>
-    [Reactive]
-    public partial string AviSynthPluginFolders { get; set; } = "";
-
-    /// <summary>
-    /// Gets or sets whether auto-detected AviSynth plugin folders are skipped.
-    /// </summary>
-    [Reactive]
-    public partial bool AviSynthReplacePlugins { get; set; }
 
     /// <summary>
     /// Gets or sets whether the script editor offers catalog-driven assistance.
@@ -125,7 +76,7 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     public partial bool EnhanceEditorWithAutoComplete { get; set; }
 
     /// <summary>
-    /// Gets whether VapourSynth can be loaded with the current path.
+    /// Gets whether VapourSynth was loaded.
     /// </summary>
     [Reactive]
     public partial bool VapourSynthFound { get; set; }
@@ -143,7 +94,7 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     public partial string? VapourSynthStatusTip { get; set; }
 
     /// <summary>
-    /// Gets whether AviSynth can be loaded with the current path.
+    /// Gets whether AviSynth was loaded.
     /// </summary>
     [Reactive]
     public partial bool AviSynthFound { get; set; }
@@ -204,112 +155,6 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     /// </summary>
     public RxCommandVoid RestoreDefault => field ??= ReactiveCommand.Create(RestoreDefaultImpl);
 
-    /// <summary>
-    /// Shows a file picker for the VapourSynth library override.
-    /// </summary>
-    public RxCommandVoid BrowseVapourSynthLibrary =>
-        field ??= ReactiveCommand.CreateFromTask(BrowseVapourSynthLibraryAsync);
-
-    /// <summary>
-    /// Shows a folder picker and appends a VapourSynth plugin folder.
-    /// </summary>
-    public RxCommandVoid BrowseVapourSynthPlugins =>
-        field ??= ReactiveCommand.CreateFromTask(BrowseVapourSynthPluginsAsync);
-
-    /// <summary>
-    /// Shows a file picker for the AviSynth library override.
-    /// </summary>
-    public RxCommandVoid BrowseAviSynthLibrary =>
-        field ??= ReactiveCommand.CreateFromTask(BrowseAviSynthLibraryAsync);
-
-    /// <summary>
-    /// Shows a folder picker and appends an AviSynth plugin folder.
-    /// </summary>
-    public RxCommandVoid BrowseAviSynthPlugins =>
-        field ??= ReactiveCommand.CreateFromTask(BrowseAviSynthPluginsAsync);
-
-    private Task BrowseVapourSynthLibraryAsync() =>
-        BrowseLibraryAsync(path => VapourSynthPath = path, VapourSynthPath, "Select VapourSynth library");
-
-    private Task BrowseVapourSynthPluginsAsync() =>
-        BrowsePluginFolderAsync(folders => VapourSynthPluginFolders = folders, VapourSynthPluginFolders,
-            "Select VapourSynth plugin folder");
-
-    private Task BrowseAviSynthLibraryAsync() =>
-        BrowseLibraryAsync(path => AviSynthPath = path, AviSynthPath, "Select AviSynth library");
-
-    private Task BrowseAviSynthPluginsAsync() =>
-        BrowsePluginFolderAsync(folders => AviSynthPluginFolders = folders, AviSynthPluginFolders,
-            "Select AviSynth plugin folder");
-
-    private async Task BrowseLibraryAsync(Action<string> setPath, string current, string title)
-    {
-        var settings = new OpenFileDialogSettings
-        {
-            Title = title,
-            SuggestedStartLocation = ExistingFolder(current),
-            SuggestedFileName = FileNameIfExists(current),
-            Filters =
-            {
-                new("Library", LibraryExtensions()),
-                new("All files", "*")
-            }
-        };
-        var file = await _dialogService.ShowOpenFileDialogAsync(this, settings);
-        if (file != null)
-        {
-            setPath(file.LocalPath);
-        }
-    }
-
-    private async Task BrowsePluginFolderAsync(Action<string> setFolders, string current, string title)
-    {
-        var settings = new OpenFolderDialogSettings
-        {
-            Title = title,
-            SuggestedStartLocation = ExistingFolder(FolderListText.Last(current, _files.Path) ?? current)
-        };
-        var folder = await _dialogService.ShowOpenFolderDialogAsync(this, settings);
-        if (folder != null)
-        {
-            setFolders(FolderListText.Append(current, folder.LocalPath, _files.Path));
-        }
-    }
-
-    private static IReadOnlyList<string> LibraryExtensions() =>
-        OperatingSystem.IsWindows() ? ["dll"] : OperatingSystem.IsMacOS() ? ["dylib"] : ["so"];
-
-    private string FileNameIfExists(string path) =>
-        path.HasText() && _files.File.Exists(path) ? _files.Path.GetFileName(path) : "";
-
-    private IDialogStorageFolder? ExistingFolder(string? path)
-    {
-        var folder = FolderPath(path);
-        return folder != null && _files.Directory.Exists(folder) ? new DesktopDialogStorageFolder(folder) : null;
-    }
-
-    private string? FolderPath(string? path)
-    {
-        if (!path.HasText())
-        {
-            return null;
-        }
-
-        if (_files.Directory.Exists(path))
-        {
-            return path;
-        }
-
-        try
-        {
-            return _files.Path.GetDirectoryName(path);
-        }
-        catch (ArgumentException)
-        {
-            return null;
-        }
-    }
-
     private void OkImpl()
     {
         SaveSettings();
@@ -320,13 +165,7 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     private void SaveSettings()
     {
         _settingsProvider.Value.Theme = Theme;
-        _settingsProvider.Value.VapourSynthPath = VapourSynthPath.Trim();
-        _settingsProvider.Value.VapourSynthPluginFolders = VapourSynthPluginFolders.Trim();
-        _settingsProvider.Value.VapourSynthReplacePlugins = VapourSynthReplacePlugins;
         _settingsProvider.Value.VapourSynthThreads = Math.Max(1, VapourSynthThreads);
-        _settingsProvider.Value.AviSynthPath = AviSynthPath.Trim();
-        _settingsProvider.Value.AviSynthPluginFolders = AviSynthPluginFolders.Trim();
-        _settingsProvider.Value.AviSynthReplacePlugins = AviSynthReplacePlugins;
         _settingsProvider.Value.EnhanceEditorWithAutoComplete = EnhanceEditorWithAutoComplete;
         _settingsProvider.Value.CheckForUpdates = CheckForUpdates;
         _appTheme.RequestedTheme = Theme.ToString();
@@ -338,13 +177,7 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     private void RestoreDefaultImpl()
     {
         Theme = AppTheme.Light;
-        VapourSynthPath = "";
-        VapourSynthPluginFolders = "";
-        VapourSynthReplacePlugins = false;
         VapourSynthThreads = Environment.ProcessorCount;
-        AviSynthPath = "";
-        AviSynthPluginFolders = "";
-        AviSynthReplacePlugins = false;
         EnhanceEditorWithAutoComplete = true;
         CheckForUpdates = UpdateInterval.Biweekly;
     }

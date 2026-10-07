@@ -11,7 +11,7 @@ public class AvsScriptIntegrationTests
 {
     private static readonly Lazy<bool> NativeAvailable = new(static () =>
     {
-        foreach (var candidate in AvsPathResolver.GetLibraryCandidates())
+        foreach (var candidate in AvsPathResolver.LibraryFileNames)
         {
             if (NativeLibrary.TryLoad(candidate, out var library))
             {
@@ -24,30 +24,15 @@ public class AvsScriptIntegrationTests
     });
 
     [Fact]
-    public void Read_AutoloadFolder_IncludesPluginExcludesBufferFunctions()
+    public void Read_PlaybackFunction_OmitsBufferFunctions()
     {
         SkipIfNativeUnavailable();
-        var directory = Path.Combine(Path.GetTempPath(), "avs-catalog-" + Guid.NewGuid());
-        Directory.CreateDirectory(directory);
-        try
-        {
-            File.WriteAllText(Path.Combine(directory, "catalog.avsi"),
-                "function CatalogAutoload(clip c) { return c }");
-            AvsScript.SetPluginFolders([directory]);
-            using var script = AvsScript.LoadScript(
-                "function CatalogBufferOnly(clip c) { return c }\nBlankClip(length=1, width=16, height=16)");
+        using var script = AvsScript.LoadScript(
+            "function CatalogBufferOnly(clip c) { return c }\nBlankClip(length=1, width=16, height=16)");
 
-            var functions = AvsCatalog.Read();
+        var functions = AvsCatalog.Read();
 
-            var autoload = Assert.Single(functions, x => x.Name == "CatalogAutoload");
-            Assert.Equal("c", autoload.Arguments);
-            Assert.DoesNotContain(functions, x => x.Name == "CatalogBufferOnly");
-        }
-        finally
-        {
-            AvsScript.SetPluginFolders([]);
-            Directory.Delete(directory, true);
-        }
+        Assert.DoesNotContain(functions, x => x.Name == "CatalogBufferOnly");
     }
 
     [Fact]
@@ -59,31 +44,6 @@ public class AvsScriptIntegrationTests
 
         Assert.Contains(functions, x => x.Name == "BlankClip" && x.Arguments != null &&
             x.Arguments.Contains("[width]i", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void Read_PlaybackLoadPlugin_OmitsPluginFunctions()
-    {
-        SkipIfNativeUnavailable();
-        var plugin = AvsScript.GetPluginDirectories()
-            .SelectMany(x => new[] { Path.Combine(x, "libmvtools2.so"), Path.Combine(x, "mvtools2.dll") })
-            .FirstOrDefault(File.Exists);
-        Assert.SkipWhen(plugin == null, "MVTools is required for the LoadPlugin isolation check.");
-        try
-        {
-            AvsScript.SetPluginFolders([], replace: true);
-            using var script = AvsScript.LoadScript(
-                "LoadPlugin(\"" + plugin.Replace("\"", "\"\"", StringComparison.Ordinal) +
-                "\")\nAssert(FunctionExists(\"MSuper\"))\nBlankClip(length=1, width=16, height=16)");
-
-            var functions = AvsCatalog.Read();
-
-            Assert.DoesNotContain(functions, x => x.Name == "MSuper");
-        }
-        finally
-        {
-            AvsScript.SetPluginFolders([]);
-        }
     }
 
     [Fact]

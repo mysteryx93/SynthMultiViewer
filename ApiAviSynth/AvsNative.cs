@@ -240,44 +240,10 @@ internal sealed class AvsNative : IDisposable
         }
     }
 
-    private static string? _overridePath;
-    private static IReadOnlyList<string> _extraPluginFolders = [];
-    private static bool _replacePluginFolders;
-
-    public static void SetDllPath(string? path) => _overridePath = path.HasValue() ? path : null;
-
-    public static void SetPluginFolders(IEnumerable<string>? folders, bool replace)
-    {
-        _extraPluginFolders = (folders ?? [])
-            .Where(dir => dir.HasValue())
-            .Select(dir => dir.Trim())
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-        _replacePluginFolders = replace;
-    }
-
-    public void ApplyPluginFolders(IntPtr environment)
-    {
-        if (_replacePluginFolders)
-        {
-            TryEval(environment, "ClearAutoloadDirs()");
-        }
-
-        foreach (var dir in _extraPluginFolders)
-        {
-            TryEval(environment, "AddAutoloadDir(\"" + dir.Replace("\"", "\"\"", StringComparison.Ordinal) + "\")");
-        }
-    }
-
-    private void TryEval(IntPtr environment, string script)
-    {
-        var result = Eval(environment, script);
-        ReleaseValue(result);
-    }
-
+    // The loader opens the same bare name FFmpeg and avs2yuv use.
     public static bool TryFindLibrary(out string? path)
     {
-        foreach (var candidate in AvsPathResolver.GetLibraryCandidates(_overridePath))
+        foreach (var candidate in AvsPathResolver.LibraryFileNames)
         {
             if (NativeLibrary.TryLoad(candidate, out var library))
             {
@@ -293,7 +259,7 @@ internal sealed class AvsNative : IDisposable
 
     public static AvsNative Load()
     {
-        foreach (var candidate in AvsPathResolver.GetLibraryCandidates(_overridePath))
+        foreach (var candidate in AvsPathResolver.LibraryFileNames)
         {
             if (NativeLibrary.TryLoad(candidate, out var library))
             {
@@ -301,13 +267,7 @@ internal sealed class AvsNative : IDisposable
             }
         }
 
-        if (_overridePath.HasValue())
-        {
-            throw new DllNotFoundException($"Could not load AviSynth from '{_overridePath}'.");
-        }
-
-        throw new DllNotFoundException(
-            "Could not load AviSynth. Set AVISYNTH_PATH to its library file or directory.");
+        throw new DllNotFoundException("Could not load AviSynth.");
     }
 
     private T GetDelegate<T>(string export) where T : Delegate

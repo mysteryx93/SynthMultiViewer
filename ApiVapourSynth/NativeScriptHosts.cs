@@ -11,23 +11,22 @@ internal static class NativeScriptHosts
         Id = VapourSynth,
         ImportName = VapourSynth,
         FileNames = FileNamesForCurrentOs(),
-        RequiredExports = ["getVSScriptAPI"],
-        PathEnvironmentVariable = "VSSCRIPT_PATH",
-        ExtraPluginPathEnvironmentVariable = "VAPOURSYNTH_EXTRA_PLUGIN_PATH"
+        RequiredExports = ["getVSScriptAPI"]
     };
 
+    // Same bare name FFmpeg opens and vspipe links.
     private static IReadOnlyList<string> FileNamesForCurrentOs()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return ["VSScript.dll", "vsscript.dll"];
+            return ["VSScript.dll"];
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            return ["libvsscript.dylib", "libvapoursynth-script.dylib"];
+            return ["libvapoursynth-script.dylib"];
         }
 
-        return ["libvsscript.so", "libvapoursynth-script.so", "libvapoursynth-script.so.0"];
+        return ["libvapoursynth-script.so"];
     }
 }

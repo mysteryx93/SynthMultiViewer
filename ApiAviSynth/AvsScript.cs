@@ -25,18 +25,7 @@ public sealed class AvsScript : IDisposable
     public static string ResolveScriptPath(string path) => AvsPathResolver.ResolveScriptPath(path);
 
     /// <summary>
-    /// Sets the AviSynth library file or directory before loading a script.
-    /// </summary>
-    public static void SetDllPath(string? path) => AvsNative.SetDllPath(path);
-
-    /// <summary>
-    /// Sets extra plugin folders. Add mode keeps detected folders; replace uses only these folders.
-    /// </summary>
-    public static void SetPluginFolders(IEnumerable<string>? folders, bool replace = false) =>
-        AvsNative.SetPluginFolders(folders, replace);
-
-    /// <summary>
-    /// Returns detected plugin directories for the specified library path.
+    /// Returns plugin directories the loaded core already uses.
     /// </summary>
     public static IReadOnlyList<string> GetPluginDirectories(string? libraryPath = null) =>
         AvsPathResolver.GetPluginDirectories(libraryPath);
@@ -184,7 +173,6 @@ IsRGB() ? ConvertToRGB32() : ConvertToRGB32(matrix=mat)
 
         try
         {
-            native.ApplyPluginFolders(environment);
             var user = evaluateUser(native, environment);
             var sourceClip = IntPtr.Zero;
             try

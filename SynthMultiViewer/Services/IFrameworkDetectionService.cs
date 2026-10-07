@@ -18,7 +18,7 @@ public enum FrameworkStatus
     Detected,
 
     /// <summary>
-    /// A configured path was set but the library could not be loaded, or a found library failed to run a script.
+    /// A library was found but could not run a script.
     /// </summary>
     Error
 }
@@ -64,7 +64,7 @@ public interface IFrameworkDetectionService
     FrameworkInstall AviSynth { get; }
 
     /// <summary>
-    /// Applies library and plugin paths from settings and probes again.
+    /// Probes the libraries the process loader opens and refreshes script-assist catalogs.
     /// </summary>
     void Apply(AppSettingsData settings);
 }

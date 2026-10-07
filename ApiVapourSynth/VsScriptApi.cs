@@ -45,7 +45,9 @@ internal sealed class VsScriptApi
         var pointer = VsInvoke.getVSScriptAPI(VsInvoke.ScriptApiVersion);
         if (pointer == IntPtr.Zero)
         {
-            throw new VsException("The loaded VSScript library does not support API 4.1.");
+            var detail = NativeLibraryLocator.TryReadScriptLastError();
+            throw new VsException(detail.HasText()
+                ? detail : "The loaded VSScript library does not support API 4.1.");
         }
 
         return new(Marshal.PtrToStructure<VsScriptApiTable>(pointer));
