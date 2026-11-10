@@ -1,28 +1,24 @@
 using System.Runtime.InteropServices;
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Avalonia.Threading;
 using HanumanInstitute.ApiAviSynth;
 using HanumanInstitute.ApiVapourSynth;
-using HanumanInstitute.MediaSynthUI;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
 using HanumanInstitute.SynthMultiViewer.Views;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class SynthPlayerHostTests
+public class SynthPlayerHostTests : ViewerTestsBase
 {
+    private readonly UiTestDriver _ui = new();
+
     [AvaloniaFact]
     public void ApplyZoomMode_DefaultZoom_ShowsZoomViewer()
     {
         var host = new SynthPlayerHost();
 
-        using var window = TestSupport.Show(new() { Width = 320, Height = 240, Content = host });
+        using var window = _ui.Show(new() { Width = 320, Height = 240, Content = host });
         var grid = Assert.IsType<Grid>(host.HostContainer);
 
         Assert.False(grid.Children.OfType<Image>().Single().IsVisible);
@@ -33,7 +29,7 @@ public class SynthPlayerHostTests
     public void PresentTestFrame_ColoredBitmap_SizesVisibleImage()
     {
         var host = new SynthPlayerHost();
-        using var window = TestSupport.Show(new() { Width = 320, Height = 240, Content = host });
+        using var window = _ui.Show(new() { Width = 320, Height = 240, Content = host });
         var bitmap = new WriteableBitmap(
             new(64, 48), new(96, 96), PixelFormat.Bgra8888, AlphaFormat.Premul);
         using (var framebuffer = bitmap.Lock())
@@ -65,7 +61,7 @@ public class SynthPlayerHostTests
     public void ApplyZoomMode_ScaleToFit_ShowsUniformImage()
     {
         var host = new SynthPlayerHost { ZoomScaleToFit = true };
-        using var window = TestSupport.Show(new() { Width = 320, Height = 240, Content = host });
+        using var window = _ui.Show(new() { Width = 320, Height = 240, Content = host });
         var bitmap = new WriteableBitmap(new(64, 48), new(96, 96), PixelFormat.Bgra8888, AlphaFormat.Premul);
 
         host.PresentTestFrame(bitmap);
@@ -86,10 +82,10 @@ public class SynthPlayerHostTests
     public void ScaleToFit_WheelAnywhereInViewport_LeavesFitAndContinuesZooming(
         int width, int height, double x, double y, int direction)
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new ViewerView { DataContext = new ViewerViewModel() };
         var window = new Window { Width = 640, Height = 480, DataContext = model, Content = view };
-        using var shown = TestSupport.Show(window);
+        using var shown = _ui.Show(window);
         var host = view.FindControl<SynthPlayerHost>("PlayerHost")!;
         using var bitmap = new WriteableBitmap(
             new(width, height), new(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
@@ -117,7 +113,7 @@ public class SynthPlayerHostTests
     {
         var image = new Image { Stretch = Avalonia.Media.Stretch.None };
         var zoom = new ZoomViewer { Child = image };
-        using var window = TestSupport.Show(new() { Width = 400, Height = 300, Content = zoom });
+        using var window = _ui.Show(new() { Width = 400, Height = 300, Content = zoom });
         using var bitmap = new WriteableBitmap(
             new(80, 40), new(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
 
@@ -132,9 +128,9 @@ public class SynthPlayerHostTests
     [AvaloniaFact]
     public void Zoom_ZeroWithMinZoom_KeepsScaleToFit()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new ViewerView { DataContext = new ViewerViewModel() };
-        using var window = TestSupport.Show(new()
+        using var window = _ui.Show(new()
         {
             Width = 640,
             Height = 480,
@@ -158,7 +154,7 @@ public class SynthPlayerHostTests
     {
         var image = new Image { Stretch = Avalonia.Media.Stretch.None };
         var zoom = new ZoomViewer { Child = image, MinZoom = 0.1, MaxZoom = 10 };
-        using var window = TestSupport.Show(new()
+        using var window = _ui.Show(new()
         {
             Width = 240,
             Height = 200,
@@ -187,7 +183,7 @@ public class SynthPlayerHostTests
             Height = 200,
             Content = new Border { Width = 200, Height = 160, Child = zoom }
         };
-        using var _ = TestSupport.Show(window);
+        using var _ = _ui.Show(window);
         using var bitmap = new WriteableBitmap(
             new(80, 40), new(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque);
         image.Source = bitmap;
@@ -217,7 +213,7 @@ public class SynthPlayerHostTests
             Threads = 1,
             LimitFps = false
         };
-        using var window = TestSupport.Show(new() { Width = 320, Height = 240, Content = host });
+        using var window = _ui.Show(new() { Width = 320, Height = 240, Content = host });
         host.Script = """
             import vapoursynth as vs
             import time
@@ -257,7 +253,7 @@ public class SynthPlayerHostTests
     {
         SkipIfAviSynthUnavailable();
         var host = new SynthPlayerHost { Kind = ScriptKind.AviSynth };
-        using var window = TestSupport.Show(new() { Width = 320, Height = 240, Content = host });
+        using var window = _ui.Show(new() { Width = 320, Height = 240, Content = host });
 
         host.Script = "BlankClip(length=12, width=160, height=120, pixel_type=\"RGB24\")\n";
         Dispatcher.UIThread.RunJobs();
@@ -275,7 +271,7 @@ public class SynthPlayerHostTests
     {
         SkipIfAviSynthUnavailable();
         var host = new SynthPlayerHost { Kind = ScriptKind.AviSynth, AutoPlay = false };
-        using var window = TestSupport.Show(new() { Width = 320, Height = 240, Content = host });
+        using var window = _ui.Show(new() { Width = 320, Height = 240, Content = host });
 
         host.Script = $"""
             top = BlankClip(length=1, width=32, height=8, pixel_type="{pixelType}", color=$FF0000)
@@ -304,7 +300,7 @@ public class SynthPlayerHostTests
     {
         SkipIfVapourSynthUnavailable();
         var host = new SynthPlayerHost { Kind = ScriptKind.VapourSynth, AutoPlay = false };
-        using var window = TestSupport.Show(new() { Width = 320, Height = 240, Content = host });
+        using var window = _ui.Show(new() { Width = 320, Height = 240, Content = host });
         var gray = format.StartsWith("GRAY", StringComparison.Ordinal);
 
         host.Script = format == "GRAY32"
@@ -351,7 +347,7 @@ public class SynthPlayerHostTests
     {
         SkipIfAviSynthUnavailable();
         var host = new SynthPlayerHost { Kind = ScriptKind.AviSynth };
-        using var window = TestSupport.Show(new() { Width = 320, Height = 240, Content = host });
+        using var window = _ui.Show(new() { Width = 320, Height = 240, Content = host });
         host.Script = "BlankClip(length=12, width=160, height=120, pixel_type=\"RGB24\")\n";
         Dispatcher.UIThread.RunJobs();
 

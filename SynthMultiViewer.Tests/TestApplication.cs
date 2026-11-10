@@ -18,5 +18,6 @@ public static class TestApplication
         AppBuilder.Configure<App>()
             .UseHeadless(new() { UseHeadlessDrawing = false })
             .UseSkia()
+            .WithDataAnnotationsValidation()
             .UseReactiveUI(_ => { });
 }

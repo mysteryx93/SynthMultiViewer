@@ -1,8 +1,5 @@
 using System.IO.Abstractions.TestingHelpers;
 using HanumanInstitute.ScriptAssist.Services;
-using HanumanInstitute.SynthMultiViewer.Models;
-using HanumanInstitute.SynthMultiViewer.Services;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
@@ -103,6 +100,26 @@ public class AppSettingsProviderTests
 
         Assert.Equal(UpdateInterval.Monthly, loaded.CheckForUpdates);
         Assert.Equal(lastCheck, loaded.LastCheckForUpdate);
+    }
+
+    [Fact]
+    public void Save_RoundTrip_PersistsEncodePreset()
+    {
+        var files = new FakeFileSystemService();
+        var provider = CreateProvider(files);
+        provider.Value.FFmpegPath = "/usr/bin/ffmpeg";
+        provider.Value.EncodePresets =
+        [
+            new EncodePreset { Name = "AV1", Arguments = "-c:v libsvtav1 -crf 25" }
+        ];
+
+        provider.Save();
+        var loaded = CreateProvider(files).Load();
+
+        Assert.Equal("/usr/bin/ffmpeg", loaded.FFmpegPath);
+        var preset = Assert.Single(loaded.EncodePresets);
+        Assert.Equal("AV1", preset.Name);
+        Assert.Equal("-c:v libsvtav1 -crf 25", preset.Arguments);
     }
 
     [Fact]

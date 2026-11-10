@@ -1,22 +1,18 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
-using HanumanInstitute.MediaSynthUI;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
 public class ZoomViewerTests
 {
+
     [AvaloniaTheory]
     [InlineData(true)]
     [InlineData(false)]
@@ -218,7 +214,7 @@ public class ZoomViewerTests
                 Width = 240, Height = 200,
                 Content = new Border { Width = 200, Height = 160, Child = Viewer }
             };
-            _shown = TestSupport.Show(Window);
+            _shown = new UiTestDriver().Show(Window);
         }
 
         public Image Image { get; }

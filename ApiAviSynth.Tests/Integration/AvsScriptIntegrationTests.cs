@@ -9,24 +9,9 @@ public class AviSynthNativeCollection;
 [Collection("AviSynthNative")]
 public class AvsScriptIntegrationTests
 {
-    private static readonly Lazy<bool> NativeAvailable = new(static () =>
-    {
-        foreach (var candidate in AvsPathResolver.LibraryFileNames)
-        {
-            if (NativeLibrary.TryLoad(candidate, out var library))
-            {
-                NativeLibrary.Free(library);
-                return true;
-            }
-        }
-
-        return false;
-    });
-
     [Fact]
     public void Read_PlaybackFunction_OmitsBufferFunctions()
     {
-        SkipIfNativeUnavailable();
         using var script = AvsScript.LoadScript(
             "function CatalogBufferOnly(clip c) { return c }\nBlankClip(length=1, width=16, height=16)");
 
@@ -38,8 +23,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void Read_BlankClip_IncludesWidthArgument()
     {
-        SkipIfNativeUnavailable();
-
         var functions = AvsCatalog.Read();
 
         Assert.Contains(functions, x => x.Name == "BlankClip" && x.Arguments != null &&
@@ -49,7 +32,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void LoadScript_BlankClip_ReturnsVideoInfo()
     {
-        SkipIfNativeUnavailable();
         const string source = "BlankClip(length=12, width=160, height=120)\n";
 
         using var script = AvsScript.LoadScript(source);
@@ -66,10 +48,29 @@ public class AvsScriptIntegrationTests
     }
 
     [Fact]
+    public void LoadScript_DisplayConversionDisabled_PreservesSourceFormat()
+    {
+        const string source = "BlankClip(length=2, width=32, height=16, pixel_type=\"YV12\")";
+
+        using var script = AvsScript.LoadScript(source, convertForDisplay: false);
+
+        Assert.Equal(script.SourceVideoInfo.PixelType, script.VideoInfo.PixelType);
+        Assert.NotEqual(AvsCsBgr32, script.VideoInfo.PixelType);
+    }
+
+    [Fact]
+    public void GetFrame_DisplayConversionDisabled_ReturnsOriginalPlane()
+    {
+        using var script = AvsScript.LoadScript("BlankClip(length=2, width=32, height=16, pixel_type=\"YV12\")");
+
+        using var frame = script.GetFrame(0, convertForDisplay: false);
+
+        Assert.Equal(32, frame.GetPlane(0).RowSize);
+    }
+
+    [Fact]
     public void TryEvaluate_NativeLibrary_ReturnsTrue()
     {
-        SkipIfNativeUnavailable();
-
         var usable = AvsScript.TryEvaluate(out var error);
 
         Assert.True(usable);
@@ -79,8 +80,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void TryReadVersion_NativeLibrary_ReturnsAviSynth()
     {
-        SkipIfNativeUnavailable();
-
         var read = AvsScript.TryReadVersion(out var version, out var detail);
 
         Assert.True(read);
@@ -91,7 +90,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void LoadFile_BlankClip_ReturnsVideoInfo()
     {
-        SkipIfNativeUnavailable();
         var path = WriteTempScript("BlankClip(length=10, width=320, height=240)\n");
         try
         {
@@ -113,7 +111,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void LoadFile_MissingFile_ThrowsFileNotFoundException()
     {
-        SkipIfNativeUnavailable();
         var path = Path.Combine(Path.GetTempPath(), $"SynthMultiViewer-missing-{Guid.NewGuid():N}.avs");
 
         var act = () => AvsScript.LoadFile(path);
@@ -124,7 +121,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void LoadFile_InvalidScript_ThrowsAvsException()
     {
-        SkipIfNativeUnavailable();
         var path = WriteTempScript("this is not a valid avisynth script\n");
         try
         {
@@ -182,7 +178,6 @@ public class AvsScriptIntegrationTests
     [MemberData(nameof(DisplayPixelTypes))]
     public void LoadScript_PixelType_ConvertsToPackedRgb32(string pixelType)
     {
-        SkipIfNativeUnavailable();
         var source = $"BlankClip(length=2, width=32, height=16, pixel_type=\"{pixelType}\")\n";
 
         using var script = AvsScript.LoadScript(source);
@@ -201,7 +196,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void LoadScript_ReturnedClip_ConvertsToPackedRgb32()
     {
-        SkipIfNativeUnavailable();
         const string source = """
             clip = BlankClip(length=1, width=32, height=16, pixel_type="YUV420P10", color=$FF0000)
             return clip
@@ -222,7 +216,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void GetSourceFrameProperties_PropSet_ReturnsSourceKeys()
     {
-        SkipIfNativeUnavailable();
         const string source = """
             BlankClip(length=2, width=16, height=16, pixel_type="YV12")
             propSet("_Matrix", 1)
@@ -240,7 +233,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void LoadScript_NoClip_ThrowsAvsException()
     {
-        SkipIfNativeUnavailable();
         const string source = "x = 1\n";
 
         var error = Assert.Throws<AvsException>(() => AvsScript.LoadScript(source));
@@ -251,7 +243,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void LoadScript_Ffms2Yuv420File_ConvertsToRedRgb32()
     {
-        SkipIfNativeUnavailable();
         var path = Path.Combine(Path.GetTempPath(), $"SynthMultiViewer-{Guid.NewGuid():N}.mp4");
         try
         {
@@ -286,7 +277,6 @@ public class AvsScriptIntegrationTests
     [Fact]
     public void LoadScript_Yv12IdentityMatrix_StillConvertsToRedRgb32()
     {
-        SkipIfNativeUnavailable();
         const string source = """
             BlankClip(length=1, width=16, height=16, pixel_type="YV12", color=$FF0000)
             propSet("_Matrix", 0)
@@ -319,8 +309,6 @@ public class AvsScriptIntegrationTests
         Assert.True(pixel[2] > pixel[0] + 80);
     }
 
-    private static void SkipIfNativeUnavailable() =>
-        Assert.SkipUnless(NativeAvailable.Value, "AviSynth+ native library was not found.");
 
     private static int Run(string fileName, string arguments)
     {

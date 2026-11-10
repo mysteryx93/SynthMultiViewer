@@ -1,5 +1,3 @@
-using HanumanInstitute.SynthMultiViewer.Helpers;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 

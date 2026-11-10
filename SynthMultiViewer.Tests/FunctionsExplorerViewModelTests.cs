@@ -1,12 +1,7 @@
-using System.Reactive.Linq;
 using System.Windows.Input;
-using HanumanInstitute.MediaSynthUI;
 using HanumanInstitute.ScriptAssist;
 using HanumanInstitute.ScriptAssist.Tests;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
-using Moq;
 using ReactiveUI.Builder;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 

@@ -1,9 +1,6 @@
 using System.Windows.Input;
 using Avalonia.Media;
-using HanumanInstitute.SynthMultiViewer.Models;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
 using ReactiveUI.Builder;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 

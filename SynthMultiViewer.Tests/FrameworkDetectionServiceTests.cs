@@ -2,9 +2,6 @@ using HanumanInstitute.ScriptAssist;
 using HanumanInstitute.ScriptAssist.AviSynth;
 using HanumanInstitute.ScriptAssist.Tests;
 using HanumanInstitute.ScriptAssist.VapourSynth;
-using HanumanInstitute.SynthMultiViewer.Services;
-using Moq;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
@@ -26,7 +23,7 @@ public class FrameworkDetectionServiceTests : TestsBase
             d.Setup(x => x.TryRead(It.IsAny<string>())).Returns((string?)null);
         });
         var factory = new ScriptLanguageFactory(vs.Object, avs.Object, folders.Object);
-        var settings = new TestSupport.MemorySettingsProvider
+        var settings = new FakeSettingsProvider
         {
             Value = { EnhanceEditorWithAutoComplete = false }
         };

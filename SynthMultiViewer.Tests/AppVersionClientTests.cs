@@ -1,13 +1,11 @@
 using System.Net;
-using System.Reactive.Linq;
 using System.Text;
-using HanumanInstitute.SynthMultiViewer.Services;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class AppVersionClientTests
+public class AppVersionClientTests : ViewerTestsBase
 {
+
     [Fact]
     public async Task QueryVersionAsync_RequestsSynthMultiViewerForCurrentOs()
     {
@@ -68,11 +66,9 @@ public class AppVersionClientTests
     [Fact]
     public async Task CheckForUpdates_NewerVersion_ShowsAvailable()
     {
-        var versions = new TestSupport.MemoryAppVersionClient
-        {
-            Result = new(new(2, 0, 0))
-        };
-        var model = TestSupport.CreateHelp(versions: versions);
+        var versions = VersionsMock;
+        versions.Setup(x => x.QueryVersionAsync()).ReturnsAsync(new AppVersionInfo(new Version(2, 0, 0)));
+        var model = HelpModel;
 
         await model.CheckForUpdates.Execute();
 
@@ -82,11 +78,9 @@ public class AppVersionClientTests
     [Fact]
     public async Task CheckForUpdates_SameOrOlderVersion_ShowsLatest()
     {
-        var versions = new TestSupport.MemoryAppVersionClient
-        {
-            Result = new(new(1, 2, 3))
-        };
-        var model = TestSupport.CreateHelp(versions: versions);
+        var versions = VersionsMock;
+        versions.Setup(x => x.QueryVersionAsync()).ReturnsAsync(new AppVersionInfo(new Version(1, 2, 3)));
+        var model = HelpModel;
 
         await model.CheckForUpdates.Execute();
 
@@ -96,7 +90,7 @@ public class AppVersionClientTests
     [Fact]
     public async Task CheckForUpdates_QueryFailed_KeepsCheckingText()
     {
-        var model = TestSupport.CreateHelp(versions: new TestSupport.MemoryAppVersionClient());
+        var model = HelpModel;
 
         await model.CheckForUpdates.Execute();
 

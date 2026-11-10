@@ -1,7 +1,4 @@
 using Avalonia.Media;
-using HanumanInstitute.MediaSynthUI;
-using HanumanInstitute.SynthMultiViewer.Models;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 

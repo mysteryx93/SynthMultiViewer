@@ -1,0 +1,11 @@
+global using Avalonia.Controls;
+global using Avalonia.Headless.XUnit;
+global using Avalonia.Threading;
+global using HanumanInstitute.MediaSynthUI;
+global using HanumanInstitute.SynthMultiViewer.Helpers;
+global using HanumanInstitute.SynthMultiViewer.Models;
+global using HanumanInstitute.SynthMultiViewer.Services;
+global using HanumanInstitute.SynthMultiViewer.ViewModels;
+global using Moq;
+global using System.Reactive.Linq;
+global using Xunit;

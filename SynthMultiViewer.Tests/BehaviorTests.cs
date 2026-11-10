@@ -1,44 +1,38 @@
-using System.Reactive.Linq;
 using System.Windows.Input;
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Input.Raw;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Avalonia.Media;
 using System.IO.Abstractions;
-using HanumanInstitute.MediaSynthUI;
 using HanumanInstitute.ScriptAssist.Services;
 using HanumanInstitute.SynthMultiViewer.Controls;
-using HanumanInstitute.SynthMultiViewer.Helpers;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
 using HanumanInstitute.SynthMultiViewer.Views;
 using ReactiveUI;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class BehaviorTests
+public class BehaviorTests : ViewerTestsBase
 {
+    private readonly UiTestDriver _ui = new();
+
     [AvaloniaFact]
     public async Task HeaderEditDone_EnterPressed_CommitsBoundName()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         Dispatcher.UIThread.RunJobs();
         ((ICommand)model.Rename).Execute(null);
         Dispatcher.UIThread.RunJobs();
 
         view.KeyTextInput("Renamed tab");
-        TestSupport.Press(view, Key.Enter);
+        _ui.Press(view, Key.Enter);
 
         Assert.Equal("Renamed tab", model.SelectedItem!.DisplayName);
         Assert.False(model.SelectedItem.IsEditingHeader);
@@ -47,9 +41,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task HeaderEditCancel_EscapePressed_RestoresName()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         Dispatcher.UIThread.RunJobs();
         var original = model.SelectedItem!.DisplayName;
@@ -57,7 +51,7 @@ public class BehaviorTests
         Dispatcher.UIThread.RunJobs();
 
         view.KeyTextInput("Renamed tab");
-        TestSupport.Press(view, Key.Escape);
+        _ui.Press(view, Key.Escape);
 
         Assert.Equal(original, model.SelectedItem.DisplayName);
         Assert.False(model.SelectedItem.IsEditingHeader);
@@ -66,9 +60,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task HeaderEditDone_BlankName_RestoresName()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         Dispatcher.UIThread.RunJobs();
         var original = model.SelectedItem!.DisplayName;
@@ -78,7 +72,7 @@ public class BehaviorTests
             .Single(x => x.Classes.Contains("tab-header-edit"));
 
         box.Text = "";
-        TestSupport.Press(view, Key.Enter);
+        _ui.Press(view, Key.Enter);
 
         Assert.False(model.SelectedItem.IsEditingHeader);
         Assert.Equal(original, model.SelectedItem.DisplayName);
@@ -87,9 +81,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task HeaderEditDone_EmptyNameClickAway_RestoresName()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         Dispatcher.UIThread.RunJobs();
         var original = model.SelectedItem!.DisplayName;
@@ -109,9 +103,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task HeaderEditDone_ViewerSurfaceClicked_CommitsBoundName()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         await model.Run.Execute();
         Dispatcher.UIThread.RunJobs();
@@ -145,7 +139,7 @@ public class BehaviorTests
             Height = 200,
             Content = new StackPanel { Children = { box, outside } }
         };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         MouseCapture.SetHasCapture(box, true);
         box.Focus();
         Dispatcher.UIThread.RunJobs();
@@ -160,9 +154,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task WhenVisible_HeaderEditorShown_FocusesAndSelectsText()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         Dispatcher.UIThread.RunJobs();
 
@@ -178,9 +172,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task New_Executed_FocusesScriptEditor()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.Load.Execute();
         Dispatcher.UIThread.RunJobs();
 
@@ -193,9 +187,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task NewAviSynth_Executed_FocusesScriptEditor()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.Load.Execute();
         Dispatcher.UIThread.RunJobs();
 
@@ -210,10 +204,10 @@ public class BehaviorTests
     public async Task ReadScriptFileAsync_OpensDocument_FocusesScriptEditor()
     {
         const string path = "/scripts/clip.vpy";
-        var files = new FakeFileSystemService().Add(path, "clip = core.std.BlankClip()");
-        var model = TestSupport.CreateMain(files: files);
+        var files = FilesFake.Add(path, "clip = core.std.BlankClip()");
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.Load.Execute();
         Dispatcher.UIThread.RunJobs();
 
@@ -246,9 +240,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task SeekKeys_HeaderEditorFocused_LeavesPositionUnchanged()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         await model.Run.Execute();
         Dispatcher.UIThread.RunJobs();
@@ -259,7 +253,7 @@ public class BehaviorTests
         Dispatcher.UIThread.RunJobs();
         view.KeyTextInput("Renamed");
 
-        TestSupport.Press(view, Key.Left);
+        _ui.Press(view, Key.Left);
 
         Assert.Equal(TimeSpan.FromSeconds(20), viewer.Position);
         Assert.True(viewer.IsEditingHeader);
@@ -269,9 +263,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task PlayPauseKeys_HeaderEditorFocused_LeavesIsPlayingUnchanged()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         await model.Run.Execute();
         Dispatcher.UIThread.RunJobs();
@@ -280,7 +274,7 @@ public class BehaviorTests
         Dispatcher.UIThread.RunJobs();
         view.KeyTextInput("Name");
 
-        TestSupport.Press(view, Key.Space);
+        _ui.Press(view, Key.Space);
 
         Assert.False(viewer.IsPlaying);
         Assert.True(viewer.IsEditingHeader);
@@ -295,7 +289,7 @@ public class BehaviorTests
         var view = new Window { Width = 200, Height = 200, Background = Brushes.White };
         DragDrop.SetAllowDrop(view, true);
         FileDropBehavior.SetCommand(view, command);
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         using var data = new DataTransfer();
         data.Add(DataTransferItem.CreateText("not a file"));
 
@@ -314,9 +308,10 @@ public class BehaviorTests
         files.File.WriteAllText(path, "clip = core.std.BlankClip()");
         try
         {
-            var model = TestSupport.CreateMain(files: files);
+            var model = new MainViewModel(Dialogs, EnvironmentFake, ScriptsMock.Object,
+                SettingsFake, UpdatesMock.Object, files);
             var view = new MainView { DataContext = model };
-            using var window = TestSupport.Show(view);
+            using var window = _ui.Show(view);
             await model.New.Execute();
             Dispatcher.UIThread.RunJobs();
             var editor = view.GetVisualDescendants().OfType<BindableTextEditor>().Single();
@@ -353,9 +348,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task ZoomKeys_EditorFocused_DoNotStealEqualsOrMinus()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model, Width = 640, Height = 320 };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         Dispatcher.UIThread.RunJobs();
         var editor = VisibleEditor(view);
@@ -365,9 +360,9 @@ public class BehaviorTests
         Dispatcher.UIThread.RunJobs();
         var zoom = model.Zoom;
 
-        TestSupport.Press(view, Key.OemPlus);
+        _ui.Press(view, Key.OemPlus);
         view.KeyTextInput("=");
-        TestSupport.Press(view, Key.OemMinus);
+        _ui.Press(view, Key.OemMinus);
         view.KeyTextInput("-");
         Dispatcher.UIThread.RunJobs();
 
@@ -378,9 +373,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task CopyFrameKeys_EditorFocused_LeavesClipboardUnchanged()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         await model.Run.Execute();
         Dispatcher.UIThread.RunJobs();
@@ -395,7 +390,7 @@ public class BehaviorTests
         var clipboard = view.Clipboard!;
         await clipboard.SetTextAsync("keep");
 
-        TestSupport.Press(view, Key.C, RawInputModifiers.Control);
+        _ui.Press(view, Key.C, RawInputModifiers.Control);
         Dispatcher.UIThread.RunJobs();
 
         Assert.Null(await clipboard.TryGetBitmapAsync());
@@ -404,9 +399,9 @@ public class BehaviorTests
     [AvaloniaFact]
     public async Task Viewer_Tab_DoesNotFocusToolbarOrTabClose()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model, Width = 800, Height = 480 };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         await model.New.Execute();
         await model.Run.Execute();
         Dispatcher.UIThread.RunJobs();
@@ -414,7 +409,7 @@ public class BehaviorTests
         viewer.Focus();
         Dispatcher.UIThread.RunJobs();
 
-        TestSupport.Press(view, Key.Tab);
+        _ui.Press(view, Key.Tab);
         Dispatcher.UIThread.RunJobs();
 
         var focused = TopLevel.GetTopLevel(view)!.FocusManager!.GetFocusedElement() as Visual;
@@ -433,7 +428,7 @@ public class BehaviorTests
         };
         ListBoxTextSearch.SetEnabled(list, true);
         var host = new Window { Width = 240, Height = 200, Content = list };
-        using var shown = TestSupport.Show(host);
+        using var shown = _ui.Show(host);
         list.Focus();
         Dispatcher.UIThread.RunJobs();
 
@@ -456,7 +451,7 @@ public class BehaviorTests
         };
         ListBoxTextSearch.SetEnabled(list, true);
         var host = new Window { Width = 240, Height = 200, Content = list };
-        using var shown = TestSupport.Show(host);
+        using var shown = _ui.Show(host);
         list.Focus();
         Dispatcher.UIThread.RunJobs();
 
@@ -477,7 +472,7 @@ public class BehaviorTests
         };
         ListBoxTextSearch.SetEnabled(list, true);
         var host = new Window { Width = 240, Height = 200, Content = list };
-        using var shown = TestSupport.Show(host);
+        using var shown = _ui.Show(host);
         list.Focus();
         Dispatcher.UIThread.RunJobs();
 

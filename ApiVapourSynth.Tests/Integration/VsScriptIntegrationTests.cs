@@ -10,28 +10,9 @@ public class VapourSynthNativeCollection;
 [Collection("VapourSynthNative")]
 public class VsScriptIntegrationTests
 {
-    private static readonly Lazy<bool> NativeAvailable = new(static () =>
-    {
-        try
-        {
-            using var script = VsScript.CreateEmpty();
-            return true;
-        }
-        catch (DllNotFoundException)
-        {
-            return false;
-        }
-        catch (EntryPointNotFoundException)
-        {
-            return false;
-        }
-    });
-
     [Fact]
     public void Read_StdCrop_IncludesVnodeArgument()
     {
-        SkipIfNativeUnavailable();
-
         var functions = VsCatalog.Read();
 
         var crop = Assert.Single(functions, x => x is { Namespace: "std", Name: "Crop" });
@@ -55,8 +36,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadScript_BlankClipRgb_ReturnsRgb24Frame()
     {
-        SkipIfNativeUnavailable();
-
         using var script = VsScript.LoadScript(RgbBlankClip);
         using var output = script.GetOutput();
         var info = output.VideoInfo;
@@ -77,9 +56,19 @@ public class VsScriptIntegrationTests
     }
 
     [Fact]
+    public void LoadScript_DisplayConversionDisabled_PreservesSourceFormat()
+    {
+        using var script = VsScript.LoadScript(YuvBlankClip, convertForDisplay: false);
+
+        using var output = script.GetOutput();
+
+        Assert.Equal(VsColorFamily.YUV, output.VideoInfo.Format.ColorFamily);
+        Assert.Equal(VsColorFamily.YUV, script.SourceVideoInfo!.Format.ColorFamily);
+    }
+
+    [Fact]
     public void LoadScript_YuvFilterRejectsRgb_EvaluatesThenConvertsForDisplay()
     {
-        SkipIfNativeUnavailable();
         const string scriptText = """
             import vapoursynth as vs
             core = vs.core
@@ -142,7 +131,6 @@ public class VsScriptIntegrationTests
     [MemberData(nameof(DisplayFormats))]
     public void LoadScript_Format_ConvertsToRgb24(string format)
     {
-        SkipIfNativeUnavailable();
         var scriptText = $"""
             import vapoursynth as vs
             core = vs.core
@@ -175,7 +163,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void GetSourceFrameProperties_SetFrameProps_ReturnsSourceKeys()
     {
-        SkipIfNativeUnavailable();
         const string scriptText = """
             import vapoursynth as vs
             core = vs.core
@@ -201,7 +188,6 @@ public class VsScriptIntegrationTests
     [InlineData("RGBS")]
     public void LoadScript_FormatRed_ConvertsToRedRgb24(string format)
     {
-        SkipIfNativeUnavailable();
         var scriptText =
             "import vapoursynth as vs\n" +
             "core = vs.core\n" +
@@ -222,7 +208,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadScript_Ffms2Yuv420File_ConvertsToRedRgb24()
     {
-        SkipIfNativeUnavailable();
         var path = Path.Combine(Path.GetTempPath(), $"SynthMultiViewer-{Guid.NewGuid():N}.mp4");
         try
         {
@@ -261,7 +246,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadScript_Yuv420IdentityMatrix_StillConvertsToRedRgb24()
     {
-        SkipIfNativeUnavailable();
         const string scriptText = """
             import vapoursynth as vs
             core = vs.core
@@ -278,7 +262,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadScript_MissingOutput_ThrowsVsExceptionWithOutputMessage()
     {
-        SkipIfNativeUnavailable();
         const string scriptText = "import vapoursynth as vs\ncore = vs.core\n";
 
         var act = () => VsScript.LoadScript(scriptText);
@@ -292,7 +275,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadScript_WithoutPath_EvaluatesBufferWithoutAWorkingDirectory()
     {
-        SkipIfNativeUnavailable();
         const string scriptText = """
             import vapoursynth as vs
             if "__file__" in globals():
@@ -311,8 +293,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void TryEvaluate_NativeLibrary_ReturnsTrue()
     {
-        SkipIfNativeUnavailable();
-
         var usable = VsScript.TryEvaluate(out var error);
 
         Assert.True(usable);
@@ -322,8 +302,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void TryReadVersion_NativeLibrary_ReturnsRelease()
     {
-        SkipIfNativeUnavailable();
-
         var read = VsScript.TryReadVersion(out var version, out var detail);
 
         Assert.True(read);
@@ -334,7 +312,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadScript_WithMissingPath_DefinesFileAndEvaluatesBuffer()
     {
-        SkipIfNativeUnavailable();
         var directory = Path.Combine(Path.GetTempPath(), $"SynthMultiViewer-{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
         var path = Path.GetFullPath(Path.Combine(directory, "missing.vpy"));
@@ -365,7 +342,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadScript_WithPath_DefinesFileAndWorkingDirectory()
     {
-        SkipIfNativeUnavailable();
         var directory = Path.Combine(Path.GetTempPath(), $"SynthMultiViewer-{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, "script.vpy");
@@ -398,7 +374,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadFile_TempYuvScript_ConvertsToRgb24()
     {
-        SkipIfNativeUnavailable();
         var path = WriteTempScript(".vpy", YuvBlankClip);
         try
         {
@@ -420,7 +395,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void LoadFileDirect_YuvScript_KeepsYuvFormat()
     {
-        SkipIfNativeUnavailable();
         var path = WriteTempScript(".vpy", YuvBlankClip);
         try
         {
@@ -445,7 +419,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void GetOutput_MissingIndex_ThrowsVsException()
     {
-        SkipIfNativeUnavailable();
         using var script = VsScript.LoadScript(RgbBlankClip);
         using var output = script.GetOutput();
 
@@ -459,7 +432,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void GetFrameAsync_FirstFrame_RaisesFrameReady()
     {
-        SkipIfNativeUnavailable();
         using var ready = new ManualResetEventSlim(false);
         VsFrameStatus? status = null;
         using var script = VsScript.LoadScript(RgbBlankClip);
@@ -481,7 +453,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void GetFrameAsync_QueuedFrames_ReadyHandlerCanReadFrameProperties()
     {
-        SkipIfNativeUnavailable();
         const int count = 5;
         using var done = new ManualResetEventSlim(false);
         var ready = 0;
@@ -510,7 +481,6 @@ public class VsScriptIntegrationTests
     [Fact]
     public void ClearQueue_SlowFrameInFlight_DisposeDoesNotDeadlock()
     {
-        SkipIfNativeUnavailable();
         const string slow = """
             import vapoursynth as vs
             import time
@@ -589,8 +559,6 @@ public class VsScriptIntegrationTests
         }
     }
 
-    private static void SkipIfNativeUnavailable() =>
-        Assert.SkipUnless(NativeAvailable.Value, "VapourSynth native library was not found.");
 
     private static string WriteTempScript(string extension, string contents)
     {

@@ -1,7 +1,4 @@
-using HanumanInstitute.MediaSynthUI;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
 using ReactiveUI.Builder;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 

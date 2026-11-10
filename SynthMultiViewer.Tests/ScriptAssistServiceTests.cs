@@ -1,6 +1,4 @@
 using HanumanInstitute.ScriptAssist;
-using HanumanInstitute.SynthMultiViewer.Services;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
@@ -9,7 +7,7 @@ public class ScriptAssistServiceTests
     [Fact]
     public void Create_WellKnownLanguages_AreRegistered()
     {
-        var service = new ScriptAssistService(new TestSupport.MemorySettingsProvider(), new FakeFileSystemService());
+        var service = new ScriptAssistService(new FakeSettingsProvider(), new FakeFileSystemService());
 
         Assert.True(service.IsEnabled);
         Assert.NotNull(service.Create(ScriptLanguageFactory.VapourSynth));
@@ -19,7 +17,7 @@ public class ScriptAssistServiceTests
     [Fact]
     public void Constructor_ReadsEnhanceEditorSetting()
     {
-        var settings = new TestSupport.MemorySettingsProvider
+        var settings = new FakeSettingsProvider
         {
             Value = { EnhanceEditorWithAutoComplete = false }
         };
@@ -32,7 +30,7 @@ public class ScriptAssistServiceTests
     [Fact]
     public void EnhanceEditorSetting_ChangedAfterConstruct_DoesNotEnable()
     {
-        var settings = new TestSupport.MemorySettingsProvider
+        var settings = new FakeSettingsProvider
         {
             Value = { EnhanceEditorWithAutoComplete = false }
         };
@@ -46,7 +44,7 @@ public class ScriptAssistServiceTests
     [Fact]
     public void Configure_WhenDisabled_DoesNotEnumerateNativeCatalogs()
     {
-        var service = new ScriptAssistService(new TestSupport.MemorySettingsProvider(), new FakeFileSystemService())
+        var service = new ScriptAssistService(new FakeSettingsProvider(), new FakeFileSystemService())
         {
             IsEnabled = false
         };

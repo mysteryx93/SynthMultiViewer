@@ -1,6 +1,4 @@
 using System.Windows.Input;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 

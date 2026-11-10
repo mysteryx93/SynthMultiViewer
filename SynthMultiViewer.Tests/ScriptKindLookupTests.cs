@@ -1,5 +1,3 @@
-using HanumanInstitute.MediaSynthUI;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 

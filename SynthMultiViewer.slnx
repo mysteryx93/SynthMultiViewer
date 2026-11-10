@@ -5,7 +5,6 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="ApiAviSynth/ApiAviSynth.csproj" />
-  <Project Path="../HanumanInstitute.Validators/Validators/HanumanInstitute.Validators.csproj" />
   <Project Path="ApiAviSynth.Tests/ApiAviSynth.Tests.csproj" />
   <Project Path="ApiVapourSynth/ApiVapourSynth.csproj" />
   <Project Path="ApiVapourSynth.Tests/ApiVapourSynth.Tests.csproj" />

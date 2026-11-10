@@ -1,8 +1,6 @@
 using System.Runtime.InteropServices;
 using HanumanInstitute.ApiAviSynth;
 using HanumanInstitute.ApiVapourSynth;
-using HanumanInstitute.MediaSynthUI;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 

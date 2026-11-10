@@ -1,23 +1,20 @@
 using System.ComponentModel;
-using System.Reactive.Linq;
 using System.Windows.Input;
-using Avalonia.Controls;
-using Avalonia.Headless.XUnit;
 using Avalonia.Media;
-using Avalonia.Threading;
-using HanumanInstitute.MediaSynthUI;
+using HanumanInstitute.FFmpeg;
+using HanumanInstitute.MvvmDialogs;
+using Microsoft.Extensions.Options;
+using HanumanInstitute.MvvmDialogs.Avalonia;
 using HanumanInstitute.MvvmDialogs.FrameworkDialogs;
 using HanumanInstitute.ScriptAssist;
-using HanumanInstitute.SynthMultiViewer.Models;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
-using Moq;
 using ReactiveUI.Builder;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class MainViewModelTests
+public class MainViewModelTests : ViewerTestsBase
 {
+    private readonly UiTestDriver _ui = new();
+
     static MainViewModelTests() =>
         RxAppBuilder.CreateReactiveUIBuilder().WithCoreServices().BuildApp();
 
@@ -25,9 +22,9 @@ public class MainViewModelTests
     public async Task Load_FileUriArgument_OpensScript()
     {
         const string path = "/scripts/opened.vpy";
-        var files = new FakeFileSystemService().Add(path, "opened from uri");
-        var model = TestSupport.CreateMain(new TestSupport.TestEnvironment(["viewer", new Uri("file://" + path).AbsoluteUri]),
-            files: files);
+        var files = FilesFake.Add(path, "opened from uri");
+        EnvironmentFake.CommandLineArguments = ["viewer", new Uri("file://" + path).AbsoluteUri];
+        var model = Workspace;
 
         await model.Load.Execute();
 
@@ -40,8 +37,9 @@ public class MainViewModelTests
     public async Task Load_ExecutedTwice_OpensArgumentsOnce()
     {
         const string path = "/scripts/from-file.vpy";
-        var files = new FakeFileSystemService().Add(path, "script from file");
-        var model = TestSupport.CreateMain(new TestSupport.TestEnvironment(["viewer", path]), files: files);
+        var files = FilesFake.Add(path, "script from file");
+        EnvironmentFake.CommandLineArguments = ["viewer", path];
+        var model = Workspace;
 
         await model.Load.Execute();
         await model.Load.Execute();
@@ -55,24 +53,24 @@ public class MainViewModelTests
     [Fact]
     public async Task Load_FirstRun_ChecksForUpdates()
     {
-        var updates = new TestSupport.MemoryAppUpdateService();
-        var model = TestSupport.CreateMain(updates: updates);
+        var updates = UpdatesMock;
+        var model = Workspace;
 
         await model.Load.Execute();
 
-        Assert.Equal(1, updates.CheckCount);
+        updates.Verify(x => x.CheckForUpdatesAsync(It.IsAny<INotifyPropertyChanged>()), Times.Once);
     }
 
     [Fact]
     public async Task Load_ExecutedTwice_ChecksForUpdatesOnce()
     {
-        var updates = new TestSupport.MemoryAppUpdateService();
-        var model = TestSupport.CreateMain(updates: updates);
+        var updates = UpdatesMock;
+        var model = Workspace;
 
         await model.Load.Execute();
         await model.Load.Execute();
 
-        Assert.Equal(1, updates.CheckCount);
+        updates.Verify(x => x.CheckForUpdatesAsync(It.IsAny<INotifyPropertyChanged>()), Times.Once);
     }
 
     [AvaloniaTheory]
@@ -82,7 +80,7 @@ public class MainViewModelTests
     [InlineData("invalid")]
     public async Task SelectTab_InvalidIndex_LeavesSelectionUnchanged(object index)
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var editor = model.SelectedItem;
 
@@ -94,7 +92,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task NextTab_FromFirst_SelectsFollowingTab()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var first = model.SelectedItem;
         await model.New.Execute();
@@ -109,7 +107,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task NextTab_FromLast_WrapsToFirst()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var first = model.SelectedItem;
         await model.New.Execute();
@@ -122,7 +120,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task PreviousTab_FromFirst_WrapsToLast()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var first = model.SelectedItem;
         await model.New.Execute();
@@ -137,7 +135,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task MoveTabRight_FromFirst_SwapsWithNeighborAndKeepsSelection()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var first = model.SelectedItem;
         await model.New.Execute();
@@ -155,7 +153,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task MoveTabLeft_AtStart_LeavesOrderUnchanged()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var first = model.SelectedItem;
         await model.New.Execute();
@@ -170,7 +168,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task SelectTab_ByStripIndex_SelectsMixedTabs()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var editor = model.SelectedItem;
         await model.Run.Execute();
@@ -185,7 +183,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task SelectTab_ByStringIndex_SelectsEditor()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var editor = model.SelectedItem;
         await model.Run.Execute();
@@ -200,7 +198,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Run_FromEditor_AppendsViewerAtEnd()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var first = model.SelectedItem;
         await model.New.Execute();
@@ -219,7 +217,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task New_AfterClose_ContinuesAfterHighestScriptNumber()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var first = model.SelectedItem!;
         await model.New.Execute();
@@ -236,7 +234,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Run_AfterClose_ContinuesAfterHighestViewerNumber()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var editor = model.SelectedItem;
         await model.Run.Execute();
@@ -255,8 +253,8 @@ public class MainViewModelTests
     public async Task New_AfterOpenFile_DoesNotConsumeScriptNumbers()
     {
         const string path = "/scripts/opened.vpy";
-        var files = new FakeFileSystemService().Add(path, "opened");
-        var model = TestSupport.CreateMain(files: files);
+        var files = FilesFake.Add(path, "opened");
+        var model = Workspace;
         await model.New.Execute();
 
         await model.ReadScriptFileAsync(path);
@@ -269,7 +267,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task New_AfterViewer_AppendsEditorAtEnd()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         var viewer = model.SelectedItem;
@@ -291,7 +289,7 @@ public class MainViewModelTests
     [InlineData(100, 50)]
     public async Task Seek_ViewerSelected_MovesPositionByFrames(int frames, int expected)
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         var viewer = Assert.IsType<ViewerViewModel>(model.SelectedItem);
@@ -308,7 +306,7 @@ public class MainViewModelTests
     [InlineData(null)]
     public async Task Seek_InvalidParameter_LeavesPositionUnchanged(object? frames)
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         var viewer = Assert.IsType<ViewerViewModel>(model.SelectedItem);
@@ -323,7 +321,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Seek_EditorSelected_CanExecuteIsFalse()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
 
         Assert.False(((ICommand)model.Seek).CanExecute(1));
@@ -332,7 +330,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task PlayPause_ViewerSelected_TogglesIsPlaying()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         var viewer = Assert.IsType<ViewerViewModel>(model.SelectedItem);
@@ -348,7 +346,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task PlayPause_EditorSelected_CanExecuteIsFalse()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
 
         Assert.False(((ICommand)model.PlayPause).CanExecute(null));
@@ -357,7 +355,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Close_ViewerSelected_ReleasesScriptAndSelectsRemainingTab()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var editor = model.SelectedItem;
         await model.Run.Execute();
@@ -374,7 +372,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Close_LastTabClosed_ClearsSelection()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
 
         await model.SelectedItem!.Close.Execute();
@@ -386,8 +384,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Close_UnmodifiedEditor_DoesNotPrompt()
     {
-        var manager = new TestSupport.FakeDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
 
         await model.SelectedItem!.Close.Execute();
@@ -399,9 +397,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Close_DirtyEditor_Cancel_KeepsTab()
     {
-        var manager = new TestSupport.FakeDialogManager();
+        var manager = DialogsFake;
         manager.QueueFrameworkResult(null);
-        var model = TestSupport.CreateMain(manager: manager);
+        var model = Workspace;
         await model.New.Execute();
         var editor = Assert.IsType<EditorViewModel>(model.SelectedItem);
         editor.Script += " extra";
@@ -420,10 +418,10 @@ public class MainViewModelTests
     public async Task Close_DirtyEditor_Discard_ClosesWithoutSaving()
     {
         const string path = "/scripts/original.vpy";
-        var files = new FakeFileSystemService().Add(path, "original");
-        var manager = new TestSupport.FakeDialogManager();
+        var files = FilesFake.Add(path, "original");
+        var manager = DialogsFake;
         manager.QueueFrameworkResult(false);
-        var model = TestSupport.CreateMain(manager: manager, files: files);
+        var model = Workspace;
         Assert.True(await model.ReadScriptFileAsync(path));
         var editor = Assert.IsType<EditorViewModel>(model.SelectedItem);
         editor.Script = "changed";
@@ -438,10 +436,10 @@ public class MainViewModelTests
     public async Task Close_DirtyEditor_Save_WritesAndCloses()
     {
         const string path = "/scripts/original.vpy";
-        var files = new FakeFileSystemService().Add(path, "original");
-        var manager = new TestSupport.FakeDialogManager();
+        var files = FilesFake.Add(path, "original");
+        var manager = DialogsFake;
         manager.QueueFrameworkResult(true);
-        var model = TestSupport.CreateMain(manager: manager, files: files);
+        var model = Workspace;
         Assert.True(await model.ReadScriptFileAsync(path));
         var editor = Assert.IsType<EditorViewModel>(model.SelectedItem);
         editor.Script = "changed";
@@ -460,10 +458,10 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Close_DirtyUntitled_SaveDialogCancelled_KeepsTab()
     {
-        var manager = new TestSupport.FakeDialogManager();
+        var manager = DialogsFake;
         manager.QueueFrameworkResult(true);
         manager.QueueFrameworkResult(null);
-        var model = TestSupport.CreateMain(manager: manager);
+        var model = Workspace;
         await model.New.Execute();
         var editor = Assert.IsType<EditorViewModel>(model.SelectedItem);
         editor.Script += " extra";
@@ -477,9 +475,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task OnClosing_DirtyEditor_CancelKeepsWindowOpen()
     {
-        var manager = new TestSupport.FakeDialogManager();
+        var manager = DialogsFake;
         manager.QueueFrameworkResult(null);
-        var model = TestSupport.CreateMain(manager: manager);
+        var model = Workspace;
         await model.New.Execute();
         Assert.IsType<EditorViewModel>(model.SelectedItem).Script += "x";
         var args = new CancelEventArgs();
@@ -496,9 +494,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task SaveAs_AviSynth_SelectsAviSynthFilter()
     {
-        var manager = new TestSupport.FakeDialogManager();
+        var manager = DialogsFake;
         manager.QueueFrameworkResult(null);
-        var model = TestSupport.CreateMain(manager: manager);
+        var model = Workspace;
         await model.NewAviSynth.Execute();
 
         await model.SaveAs.Execute();
@@ -512,9 +510,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task SaveAs_VapourSynth_SelectsVapourSynthFilter()
     {
-        var manager = new TestSupport.FakeDialogManager();
+        var manager = DialogsFake;
         manager.QueueFrameworkResult(null);
-        var model = TestSupport.CreateMain(manager: manager);
+        var model = Workspace;
         await model.New.Execute();
 
         await model.SaveAs.Execute();
@@ -528,7 +526,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Close_MiddleTabClosed_SelectsFollowingTab()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         await model.New.Execute();
         var second = model.SelectedItem;
@@ -545,7 +543,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Close_LastOfSeveralClosed_SelectsPreviousTab()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         await model.New.Execute();
         var second = model.SelectedItem;
@@ -560,7 +558,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task UpdateAll_SingleViewer_RemainsEnabled()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var command = (ICommand)model.UpdateAll;
         await model.New.Execute();
         await model.Run.Execute();
@@ -577,7 +575,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task UpdateAll_EditorSelected_CanExecuteIsFalse()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var command = (ICommand)model.UpdateAll;
         await model.New.Execute();
         var editor = model.SelectedItem;
@@ -592,8 +590,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Properties_ViewerSelected_ShowsModelessWindow()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
 
@@ -607,8 +605,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Properties_AlreadyOpen_ClosesWindow()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         await model.Properties.Execute();
@@ -625,8 +623,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Properties_ToggledClosed_ReopenShowsNewWindow()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         await model.Properties.Execute();
@@ -642,8 +640,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Properties_Closed_ShowsNewWindow()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         await model.Properties.Execute();
@@ -660,8 +658,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Properties_Reopen_RestoresPlacementOnNewWindow()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         await model.Properties.Execute();
@@ -686,8 +684,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Properties_ToggleClose_RestoresPlacementOnReopen()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
         await model.Properties.Execute();
@@ -712,7 +710,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Properties_EditorSelected_CannotExecute()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
 
         Assert.False(((ICommand)model.Properties).CanExecute(null));
@@ -721,8 +719,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task FunctionsExplorer_EditorSelected_ShowsModelessWindow()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
 
         await model.FunctionsExplorer.Execute();
@@ -733,10 +731,62 @@ public class MainViewModelTests
     }
 
     [AvaloniaFact]
+    public async Task Encode_EditorSelected_ShowsSettingsDialog()
+    {
+        var manager = DialogsFake;
+        var model = Workspace;
+        await model.New.Execute();
+
+        await model.Encode.Execute();
+
+        var encode = Assert.IsType<EncodeViewModel>(manager.LastDialog);
+        Assert.Equal("Encode", encode.DisplayName);
+    }
+
+    [AvaloniaFact]
+    public async Task Encode_StartAccepted_ClosesSettingsDialog()
+    {
+        var encoder = new Mock<IEncoderService>();
+        encoder.SetupGet(x => x.Processes).Returns(new EncoderService().Processes);
+        encoder.Setup(x => x.GetMediaEncoder(It.IsAny<object>())).Returns(new Mock<IMediaEncoder>().Object);
+        var encode = new EncodeViewModel(encoder.Object, Options.Create(new AppPaths()), SettingsFake, FilesFake, Dialogs);
+        var model = Workspace;
+        await model.New.Execute();
+        encode.Bind(model.SelectedItem);
+        var closed = false;
+        encode.RequestClose += OnClose;
+        void OnClose(object? sender, EventArgs e) => closed = true;
+
+        await encode.Start.Execute();
+
+        Assert.True(encode.DialogResult);
+        Assert.True(closed);
+    }
+
+    [AvaloniaFact]
+    public async Task Benchmark_PlayingViewer_PausesUntilDialogCloses()
+    {
+        var manager = DialogsFake;
+        var model = Workspace;
+        var viewer = new ViewerViewModel { IsPlaying = true };
+        model.ScriptList.Add(viewer);
+        model.SelectedItem = viewer;
+        var paused = false;
+        manager.OnShow = Observe;
+        void Observe(IModalDialogViewModel dialog) => paused = !viewer.IsPlaying;
+
+        await model.Benchmark.Execute();
+
+        Assert.IsType<BenchmarkViewModel>(manager.LastDialog);
+        Assert.True(paused);
+        Assert.True(viewer.IsPlaying);
+    }
+
+    [AvaloniaFact]
     public async Task FunctionsExplorer_AlreadyOpen_ClosesWindow()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.FunctionsExplorer.Execute();
         var opened = model.IsFunctionsExplorerOpen;
@@ -750,7 +800,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task FunctionsExplorer_ViewerSelected_CannotExecute()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         await model.Run.Execute();
 
@@ -760,8 +810,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task FunctionsExplorer_ViewerTab_ClosesWindow()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.FunctionsExplorer.Execute();
 
@@ -773,8 +823,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task FunctionsExplorer_SwitchEditor_BrowsesNewEditor()
     {
-        var manager = new TestSupport.ScriptedDialogManager();
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        var model = Workspace;
         await model.New.Execute();
         await model.FunctionsExplorer.Execute();
         var explorer = Assert.IsType<FunctionsExplorerViewModel>(manager.LastShown);
@@ -805,10 +855,12 @@ public class MainViewModelTests
     [InlineData(false)]
     public async Task Close_InputDialogConfirmedOrCancelled_ReturnsDialogResult(bool accept)
     {
-        var ownerModel = TestSupport.CreateMain();
+        var ownerModel = Workspace;
         var owner = new Window { DataContext = ownerModel };
-        using var window = TestSupport.Show(owner);
-        var dialogs = new HanumanInstitute.MvvmDialogs.Avalonia.DialogService(new TestSupport.OwnerDialogManager(owner));
+        using var window = _ui.Show(owner);
+        var manager = new Mock<DialogManager>(new ViewLocator(), null!, null!, null!, null!) { CallBase = true };
+        manager.Setup(x => x.FindViewByViewModel(ownerModel)).Returns(owner.AsWrapper());
+        var dialogs = new DialogService(manager.Object);
         var input = new InputViewModel { Value = "12", Validate = text => int.TryParse(text, out _) };
         input.Reset();
         var result = dialogs.ShowDialogAsync(ownerModel, input);
@@ -822,11 +874,13 @@ public class MainViewModelTests
     [AvaloniaFact(Timeout = 10000)]
     public async Task Close_HelpDialogClosed_CompletesDialog()
     {
-        var ownerModel = TestSupport.CreateMain();
+        var ownerModel = Workspace;
         var owner = new Window { DataContext = ownerModel };
-        using var window = TestSupport.Show(owner);
-        var dialogs = new HanumanInstitute.MvvmDialogs.Avalonia.DialogService(new TestSupport.OwnerDialogManager(owner));
-        var help = TestSupport.CreateHelp();
+        using var window = _ui.Show(owner);
+        var manager = new Mock<DialogManager>(new ViewLocator(), null!, null!, null!, null!) { CallBase = true };
+        manager.Setup(x => x.FindViewByViewModel(ownerModel)).Returns(owner.AsWrapper());
+        var dialogs = new DialogService(manager.Object);
+        var help = HelpModel;
         var result = dialogs.ShowDialogAsync(ownerModel, help);
 
         ((ICommand)help.Close).Execute(null);
@@ -838,8 +892,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public void Threads_MultiThreadingOff_ReturnsOne()
     {
-        var settings = new TestSupport.MemorySettingsProvider { Value = { VapourSynthThreads = 8 } };
-        var model = TestSupport.CreateMain(settings: settings);
+        var settings = SettingsFake;
+        settings.Value = new AppSettingsData { VapourSynthThreads = 8 };
+        var model = Workspace;
 
         Assert.Equal(1, model.Threads);
     }
@@ -847,8 +902,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public void Threads_MultiThreadingOn_UsesVapourSynthThreads()
     {
-        var settings = new TestSupport.MemorySettingsProvider { Value = { VapourSynthThreads = 8 } };
-        var model = TestSupport.CreateMain(settings: settings);
+        var settings = SettingsFake;
+        settings.Value = new AppSettingsData { VapourSynthThreads = 8 };
+        var model = Workspace;
         model.IsMultiThreaded = true;
 
         Assert.Equal(8, model.Threads);
@@ -857,8 +913,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public void Threads_SettingsSavedWhileMultiThreaded_RaisesThreads()
     {
-        var settings = new TestSupport.MemorySettingsProvider { Value = { VapourSynthThreads = 4 } };
-        var model = TestSupport.CreateMain(settings: settings);
+        var settings = SettingsFake;
+        settings.Value = new AppSettingsData { VapourSynthThreads = 4 };
+        var model = Workspace;
         model.IsMultiThreaded = true;
         var raised = false;
         model.PropertyChanged += (_, e) =>
@@ -879,8 +936,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public void OnClosed_SavesSettings()
     {
-        var settings = new TestSupport.MemorySettingsProvider();
-        var model = TestSupport.CreateMain(settings: settings);
+        var settings = SettingsFake;
+        var model = Workspace;
 
         model.OnClosed();
 
@@ -890,7 +947,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public void Zoom_SetToZero_EnablesScaleToFit()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
 
         model.Zoom = 0;
 
@@ -901,7 +958,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Toolbar_EditorSelected_ShowsEditorCommands()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
 
         await model.New.Execute();
 
@@ -913,9 +970,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Toolbar_VapourSynthViewerSelected_ShowsViewerCommands()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
 
-        await TestSupport.OpenViewerAsync(model);
+        await _ui.OpenViewerAsync(model);
 
         Assert.False(model.IsEditorSelected);
         Assert.True(model.IsViewerSelected);
@@ -925,7 +982,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Toolbar_AviSynthViewerSelected_HidesMultiThreading()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.NewAviSynth.Execute();
 
         await model.Run.Execute();
@@ -938,7 +995,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task TabBackground_DefaultSettings_UsesEngineTypeColors()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         await model.NewAviSynth.Execute();
         var avs = Assert.IsType<EditorViewModel>(model.SelectedItem);
@@ -957,8 +1014,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task TabBackground_ThemeChanged_RecalculatesFill()
     {
-        var settings = new TestSupport.MemorySettingsProvider();
-        var model = TestSupport.CreateMain(settings: settings);
+        var settings = SettingsFake;
+        var model = Workspace;
         await model.New.Execute();
         settings.Value.Theme = AppTheme.Dark;
         settings.Save();
@@ -970,7 +1027,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task TabBackground_TabColorOverride_UsesCustomColor()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         model.SelectedItem!.TabColor = Colors.HotPink;
 
@@ -980,18 +1037,17 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task ChangeTabColor_Ok_AppliesSelectedHue()
     {
-        var manager = new TestSupport.ScriptedDialogManager
-        {
-            OnShow = dialog =>
-            {
-                var picker = Assert.IsType<TabColorViewModel>(dialog);
-                Assert.Equal(TabColors.For(ScriptKind.VapourSynth, false, AppTheme.Light), picker.Color);
-                picker.Color = Colors.HotPink;
-                ((ICommand)picker.Ok).Execute(null);
-            }
-        };
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        manager.OnShow = OnShow;
+        var model = Workspace;
         await model.New.Execute();
+        void OnShow(IModalDialogViewModel dialog)
+        {
+            var picker = Assert.IsType<TabColorViewModel>(dialog);
+            Assert.Equal(TabColors.For(ScriptKind.VapourSynth, false, AppTheme.Light), picker.Color);
+            picker.Color = Colors.HotPink;
+            ((ICommand)picker.Ok).Execute(null);
+        }
 
         await model.ChangeTabColor.Execute();
 
@@ -1002,13 +1058,12 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task ChangeTabColor_Cancel_LeavesExistingHue()
     {
-        var manager = new TestSupport.ScriptedDialogManager
-        {
-            OnShow = dialog => ((ICommand)((TabColorViewModel)dialog).Close).Execute(null)
-        };
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        manager.OnShow = OnShow;
+        var model = Workspace;
         await model.New.Execute();
         model.SelectedItem!.TabColor = Colors.Orange;
+        void OnShow(IModalDialogViewModel dialog) => ((ICommand)((TabColorViewModel)dialog).Close).Execute(null);
 
         await model.ChangeTabColor.Execute();
 
@@ -1018,18 +1073,17 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task ChangeTabColor_Default_ClearsOverride()
     {
-        var manager = new TestSupport.ScriptedDialogManager
-        {
-            OnShow = dialog =>
-            {
-                var picker = Assert.IsType<TabColorViewModel>(dialog);
-                ((ICommand)picker.RestoreDefault).Execute(null);
-                ((ICommand)picker.Ok).Execute(null);
-            }
-        };
-        var model = TestSupport.CreateMain(manager: manager);
+        var manager = DialogsFake;
+        manager.OnShow = OnShow;
+        var model = Workspace;
         await model.New.Execute();
         model.SelectedItem!.TabColor = Colors.HotPink;
+        void OnShow(IModalDialogViewModel dialog)
+        {
+            var picker = Assert.IsType<TabColorViewModel>(dialog);
+            ((ICommand)picker.RestoreDefault).Execute(null);
+            ((ICommand)picker.Ok).Execute(null);
+        }
 
         await model.ChangeTabColor.Execute();
 
@@ -1043,7 +1097,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Run_AviSynthEditor_CopiesKindToViewer()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.NewAviSynth.Execute();
         var editor = Assert.IsType<EditorViewModel>(model.SelectedItem);
         editor.FileName = "/scripts/clip.avs";
@@ -1059,7 +1113,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Run_UnsavedPastedScript_CopiesTextWithoutInventingAPath()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.New.Execute();
         var editor = Assert.IsType<EditorViewModel>(model.SelectedItem);
         const string pasted = """
@@ -1082,8 +1136,8 @@ public class MainViewModelTests
     {
         const string path = "/scripts/clip.avs";
         const string script = "BlankClip()\n";
-        var files = new FakeFileSystemService().Add(path, script);
-        var model = TestSupport.CreateMain(files: files);
+        var files = FilesFake.Add(path, script);
+        var model = Workspace;
 
         var loaded = await model.ReadScriptFileAsync(path);
 
@@ -1097,7 +1151,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Load_NoArguments_LeavesEmptyStart()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
 
         await model.Load.Execute();
 
@@ -1109,7 +1163,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task New_HidesStart()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.Load.Execute();
 
         await model.New.Execute();
@@ -1121,7 +1175,7 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Close_LastTab_ShowsStart()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         await model.Load.Execute();
         await model.New.Execute();
 
@@ -1135,8 +1189,8 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task New_DoesNotRememberUntitled()
     {
-        var settings = new TestSupport.MemorySettingsProvider();
-        var model = TestSupport.CreateMain(settings: settings);
+        var settings = SettingsFake;
+        var model = Workspace;
 
         await model.New.Execute();
         await model.SelectedItem!.Close.Execute();
@@ -1149,9 +1203,9 @@ public class MainViewModelTests
     public async Task ReadScriptFileAsync_RemembersRecent()
     {
         const string path = "/scripts/clip.vpy";
-        var files = new FakeFileSystemService().Add(path, "clip");
-        var settings = new TestSupport.MemorySettingsProvider();
-        var model = TestSupport.CreateMain(settings: settings, files: files);
+        var files = FilesFake.Add(path, "clip");
+        var settings = SettingsFake;
+        var model = Workspace;
 
         Assert.True(await model.ReadScriptFileAsync(path));
 
@@ -1163,9 +1217,9 @@ public class MainViewModelTests
     public async Task Close_RecentFile_ShowsRecentOnStart()
     {
         const string path = "/scripts/clip.vpy";
-        var files = new FakeFileSystemService().Add(path, "clip");
-        var settings = new TestSupport.MemorySettingsProvider();
-        var model = TestSupport.CreateMain(settings: settings, files: files);
+        var files = FilesFake.Add(path, "clip");
+        var settings = SettingsFake;
+        var model = Workspace;
         Assert.True(await model.ReadScriptFileAsync(path));
 
         await model.SelectedItem!.Close.Execute();
@@ -1180,9 +1234,9 @@ public class MainViewModelTests
     {
         const string first = "/scripts/a.vpy";
         const string second = "/scripts/b.vpy";
-        var files = new FakeFileSystemService().Add(first, "a").Add(second, "b");
-        var settings = new TestSupport.MemorySettingsProvider();
-        var model = TestSupport.CreateMain(settings: settings, files: files);
+        var files = FilesFake.Add(first, "a").Add(second, "b");
+        var settings = SettingsFake;
+        var model = Workspace;
         Assert.True(await model.ReadScriptFileAsync(first));
         Assert.True(await model.ReadScriptFileAsync(second));
         Assert.Equal([second, first], settings.Value.RecentFiles);
@@ -1195,15 +1249,15 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task Recents_Cap8_DropsOldest()
     {
-        var disk = new FakeFileSystemService();
+        var disk = FilesFake;
         var paths = new string[9];
         for (var i = 0; i < 9; i++)
         {
             paths[i] = "/scripts/" + i + ".vpy";
             disk.Add(paths[i], i.ToString());
         }
-        var settings = new TestSupport.MemorySettingsProvider();
-        var model = TestSupport.CreateMain(settings: settings, files: disk);
+        var settings = SettingsFake;
+        var model = Workspace;
 
         for (var i = 0; i < 9; i++)
         {
@@ -1218,10 +1272,9 @@ public class MainViewModelTests
     [AvaloniaFact]
     public void Recents_MissingFile_PrunedOnStart()
     {
-        var settings = new TestSupport.MemorySettingsProvider();
+        var settings = SettingsFake;
         settings.Value.RecentFiles.Add("/scripts/missing.vpy");
-
-        var model = TestSupport.CreateMain(settings: settings);
+        var model = Workspace;
 
         Assert.Empty(model.Recents);
         Assert.Empty(settings.Value.RecentFiles);
@@ -1231,12 +1284,12 @@ public class MainViewModelTests
     [AvaloniaFact]
     public async Task OpenRecent_Missing_PrunesAndShowsError()
     {
-        var manager = new TestSupport.FakeDialogManager();
-        var settings = new TestSupport.MemorySettingsProvider();
+        var manager = DialogsFake;
+        var settings = SettingsFake;
         const string missing = "/scripts/missing.vpy";
-        var files = new FakeFileSystemService().Add(missing, "clip");
+        var files = FilesFake.Add(missing, "clip");
         settings.Value.RecentFiles.Add(missing);
-        var model = TestSupport.CreateMain(settings: settings, manager: manager, files: files);
+        var model = Workspace;
         Assert.Single(model.Recents);
         files.File.Delete(missing);
 
@@ -1252,9 +1305,9 @@ public class MainViewModelTests
     public async Task Save_ExistingPath_RemembersFile()
     {
         const string path = "/scripts/original.vpy";
-        var files = new FakeFileSystemService().Add(path, "original");
-        var settings = new TestSupport.MemorySettingsProvider();
-        var model = TestSupport.CreateMain(settings: settings, files: files);
+        var files = FilesFake.Add(path, "original");
+        var settings = SettingsFake;
+        var model = Workspace;
         await model.New.Execute();
         var editor = Assert.IsType<EditorViewModel>(model.SelectedItem);
         editor.FileName = path;

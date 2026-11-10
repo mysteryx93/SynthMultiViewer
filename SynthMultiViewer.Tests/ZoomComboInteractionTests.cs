@@ -1,24 +1,20 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
 using Avalonia.Input;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
-using HanumanInstitute.SynthMultiViewer.Helpers;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
 using HanumanInstitute.SynthMultiViewer.Views;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class ZoomComboInteractionTests
+public class ZoomComboInteractionTests : ViewerTestsBase
 {
+    private readonly UiTestDriver _ui = new();
+
     [AvaloniaFact]
     public void Click_EmptyContentArea_FocusesEditorWithoutOpeningDropdown()
     {
-        var view = new MainView { DataContext = TestSupport.CreateMain() };
-        using var window = TestSupport.Show(view);
+        var view = new MainView { DataContext = Workspace };
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         var box = Editor(combo);
 
@@ -31,8 +27,8 @@ public class ZoomComboInteractionTests
     [AvaloniaFact]
     public void OpenDropDown_ByButton_DoesNotSelectEditorText()
     {
-        var view = new MainView { DataContext = TestSupport.CreateMain() };
-        using var window = TestSupport.Show(view);
+        var view = new MainView { DataContext = Workspace };
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         var box = Editor(combo);
 
@@ -40,7 +36,7 @@ public class ZoomComboInteractionTests
         var dropDownOpen = combo.IsDropDownOpen;
         var start = box.SelectionStart;
         var end = box.SelectionEnd;
-        TestSupport.Press(view, Key.Escape);
+        _ui.Press(view, Key.Escape);
 
         Assert.True(dropDownOpen);
         Assert.Equal(start, end);
@@ -49,8 +45,8 @@ public class ZoomComboInteractionTests
     [AvaloniaFact]
     public void SelectPreset_FromDropDown_DoesNotSelectEditorText()
     {
-        var view = new MainView { DataContext = TestSupport.CreateMain() };
-        using var window = TestSupport.Show(view);
+        var view = new MainView { DataContext = Workspace };
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         var box = Editor(combo);
         Click(view, combo.TranslatePoint(new(combo.Bounds.Width - 12, 14), view)!.Value);
@@ -66,19 +62,19 @@ public class ZoomComboInteractionTests
     [AvaloniaFact]
     public void OpenDropDown_ByKeyboard_DoesNotSelectEditorText()
     {
-        var view = new MainView { DataContext = TestSupport.CreateMain() };
-        using var window = TestSupport.Show(view);
+        var view = new MainView { DataContext = Workspace };
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         var box = Editor(combo);
         box.Focus();
         box.SelectAll();
 
-        TestSupport.Press(view, Key.F4);
+        _ui.Press(view, Key.F4);
         Dispatcher.UIThread.RunJobs();
         var dropDownOpen = combo.IsDropDownOpen;
         var start = box.SelectionStart;
         var end = box.SelectionEnd;
-        TestSupport.Press(view, Key.Escape);
+        _ui.Press(view, Key.Escape);
 
         Assert.True(dropDownOpen);
         Assert.Equal(start, end);
@@ -89,9 +85,9 @@ public class ZoomComboInteractionTests
     [InlineData("abc", 1)]
     public void Click_BlankSpace_CommitsOrRestoresAndReleasesFocus(string text, double zoom)
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         var box = Editor(combo);
         box.Focus();
@@ -109,16 +105,16 @@ public class ZoomComboInteractionTests
     [InlineData(Key.Escape, 1)]
     public void FinishEditing_WithKeyboard_CommitsOrCancelsAndReleasesFocus(Key key, double zoom)
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         var box = Editor(combo);
         box.Focus();
         box.SelectAll();
         view.KeyTextInput("137%");
 
-        TestSupport.Press(view, key);
+        _ui.Press(view, key);
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal(zoom, model.Zoom, precision: 8);
@@ -128,9 +124,9 @@ public class ZoomComboInteractionTests
     [AvaloniaFact]
     public void SelectPreset_FromDropDown_UpdatesZoom()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         Editor(combo).Focus();
         Editor(combo).SelectAll();
@@ -148,8 +144,8 @@ public class ZoomComboInteractionTests
     [AvaloniaFact]
     public void Click_BlankSpaceWithDropdownOpen_DismissesAndReleasesFocus()
     {
-        var view = new MainView { DataContext = TestSupport.CreateMain() };
-        using var window = TestSupport.Show(view);
+        var view = new MainView { DataContext = Workspace };
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         Editor(combo).Focus();
         Click(view, combo.TranslatePoint(new(combo.Bounds.Width - 12, 14), view)!.Value);
@@ -165,9 +161,9 @@ public class ZoomComboInteractionTests
     [AvaloniaFact]
     public void ComboBoxCommit_Disabled_DetachesClickAwayAndCommit()
     {
-        var model = TestSupport.CreateMain();
+        var model = Workspace;
         var view = new MainView { DataContext = model };
-        using var window = TestSupport.Show(view);
+        using var window = _ui.Show(view);
         var combo = ViewerZoom(view);
         ComboBoxCommit.SetEnabled(combo, false);
         Editor(combo).Focus();
@@ -180,9 +176,9 @@ public class ZoomComboInteractionTests
         Assert.Equal(1, model.Zoom);
     }
 
-    private static ComboBox ViewerZoom(MainView view)
+    private ComboBox ViewerZoom(MainView view)
     {
-        TestSupport.ShowViewerToolbar((MainViewModel)view.DataContext!);
+        _ui.ShowViewerToolbar((MainViewModel)view.DataContext!);
         return view.FindControl<ComboBox>("ZoomCombo")!;
     }
 

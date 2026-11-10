@@ -1,14 +1,9 @@
-using System.Reactive.Linq;
-using Avalonia.Headless.XUnit;
-using HanumanInstitute.SynthMultiViewer.Services;
-using HanumanInstitute.MediaSynthUI;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
-public class DefaultScriptServiceTests
+public class DefaultScriptServiceTests : ViewerTestsBase
 {
+
     [AvaloniaFact]
     public void VapourSynth_Asset_ContainsBlankClipAndOutput()
     {
@@ -34,10 +29,10 @@ public class DefaultScriptServiceTests
     [Fact]
     public async Task New_Executed_UsesDefaultVapourSynthScript()
     {
-        var defaults = new TestSupport.MemoryDefaultScripts();
+        var defaults = Mock.Of<IDefaultScriptService>(x => x.VapourSynth == "example vs" && x.AviSynth == "example avs");
         var model = new MainViewModel(
-            TestSupport.CreateDialogs(), new TestSupport.TestEnvironment(), defaults,
-            new TestSupport.MemorySettingsProvider(), new TestSupport.MemoryAppUpdateService(),
+            Dialogs, new FakeEnvironmentService(), defaults,
+            new FakeSettingsProvider(), Mock.Of<IAppUpdateService>(),
             new FakeFileSystemService());
 
         await model.New.Execute();
@@ -50,10 +45,10 @@ public class DefaultScriptServiceTests
     [Fact]
     public async Task NewAviSynth_Executed_UsesDefaultAviSynthScript()
     {
-        var defaults = new TestSupport.MemoryDefaultScripts();
+        var defaults = Mock.Of<IDefaultScriptService>(x => x.VapourSynth == "example vs" && x.AviSynth == "example avs");
         var model = new MainViewModel(
-            TestSupport.CreateDialogs(), new TestSupport.TestEnvironment(), defaults,
-            new TestSupport.MemorySettingsProvider(), new TestSupport.MemoryAppUpdateService(),
+            Dialogs, new FakeEnvironmentService(), defaults,
+            new FakeSettingsProvider(), Mock.Of<IAppUpdateService>(),
             new FakeFileSystemService());
 
         await model.NewAviSynth.Execute();

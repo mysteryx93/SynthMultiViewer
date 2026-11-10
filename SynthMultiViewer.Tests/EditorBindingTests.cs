@@ -1,22 +1,18 @@
-using Avalonia.Controls;
-using Avalonia.Headless.XUnit;
-using HanumanInstitute.MediaSynthUI;
 using HanumanInstitute.SynthMultiViewer.Controls;
-using HanumanInstitute.SynthMultiViewer.Helpers;
-using HanumanInstitute.SynthMultiViewer.ViewModels;
 using HanumanInstitute.SynthMultiViewer.Views;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
 public class EditorBindingTests
 {
+    private readonly UiTestDriver _ui = new();
+
     [AvaloniaFact]
     public void ScriptText_DocumentEdited_UpdatesViewModel()
     {
         var model = new EditorViewModel { Script = "original" };
         var view = new EditorView { DataContext = model };
-        using var window = TestSupport.Show(new() { Content = view });
+        using var window = _ui.Show(new() { Content = view });
         var editor = view.FindControl<BindableTextEditor>("Editor")!;
 
         editor.Document.Insert(editor.Document.TextLength, " edit");
@@ -29,7 +25,7 @@ public class EditorBindingTests
     {
         var model = new EditorViewModel { Script = "original" };
         var view = new EditorView { DataContext = model };
-        using var window = TestSupport.Show(new() { Content = view });
+        using var window = _ui.Show(new() { Content = view });
         var editor = view.FindControl<BindableTextEditor>("Editor")!;
         editor.Document.Insert(editor.Document.TextLength, " edit");
 
@@ -45,7 +41,7 @@ public class EditorBindingTests
         var first = new EditorViewModel { Script = "first" };
         var second = new EditorViewModel { Script = "second" };
         var view = new EditorView { DataContext = first };
-        using var window = TestSupport.Show(new() { Content = view });
+        using var window = _ui.Show(new() { Content = view });
         var editor = view.FindControl<BindableTextEditor>("Editor")!;
 
         view.DataContext = second;
@@ -62,7 +58,7 @@ public class EditorBindingTests
     {
         var model = new EditorViewModel { Script = "original" };
         var view = new EditorView { DataContext = model };
-        using var window = TestSupport.Show(new() { Content = view });
+        using var window = _ui.Show(new() { Content = view });
         var editor = view.FindControl<BindableTextEditor>("Editor")!;
 
         model.Script = "replacement";
@@ -76,7 +72,7 @@ public class EditorBindingTests
         var model = new EditorViewModel { Kind = ScriptKind.AviSynth, Script = "BlankClip()" };
         var view = new EditorView { DataContext = model };
 
-        using var window = TestSupport.Show(new() { Content = view });
+        using var window = _ui.Show(new() { Content = view });
         var editor = view.FindControl<BindableTextEditor>("Editor")!;
 
         Assert.Equal("HighlightAviSynth.xshd", SyntaxHighlight.GetSource(editor));
@@ -90,7 +86,7 @@ public class EditorBindingTests
         var model = new EditorViewModel { Kind = ScriptKind.VapourSynth, Script = "clip = core.std.BlankClip()" };
         var view = new EditorView { DataContext = model };
 
-        using var window = TestSupport.Show(new() { Content = view });
+        using var window = _ui.Show(new() { Content = view });
         var editor = view.FindControl<BindableTextEditor>("Editor")!;
 
         Assert.Equal("HighlightVapourSynth.xshd", SyntaxHighlight.GetSource(editor));

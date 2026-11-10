@@ -1,9 +1,6 @@
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Headless;
-using Avalonia.Headless.XUnit;
 using Avalonia.Input;
-using Avalonia.Threading;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using HanumanInstitute.ScriptAssist;
@@ -11,13 +8,13 @@ using HanumanInstitute.ScriptAssist.AvaloniaEdit;
 using HanumanInstitute.ScriptAssist.Tests;
 using HanumanInstitute.ScriptAssist.VapourSynth;
 using HanumanInstitute.SynthMultiViewer.Controls;
-using Moq;
-using Xunit;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;
 
 public class EditorCompletionTests : TestsBase
 {
+    private readonly UiTestDriver _ui = new();
+
     public EditorCompletionTests(ITestOutputHelper output) : base(output)
     {
     }
@@ -78,7 +75,7 @@ public class EditorCompletionTests : TestsBase
         var editor = new BindableTextEditor { Text = "co" };
         UseService(editor, service);
         var other = new TextBox();
-        using var shown = TestSupport.Show(new() { Content = new StackPanel { Children = { editor, other } } });
+        using var shown = _ui.Show(new() { Content = new StackPanel { Children = { editor, other } } });
         editor.TextArea.Focus();
         editor.CaretOffset = 2;
         var request = editor.RequestCompletionAsync(delay: TimeSpan.Zero);
@@ -131,7 +128,7 @@ public class EditorCompletionTests : TestsBase
         });
         var assist = new EditorAssist(editor, session.Object);
         assist.Attach();
-        using var shown = TestSupport.Show(new() { Content = editor, Width = 400, Height = 200 });
+        using var shown = _ui.Show(new() { Content = editor, Width = 400, Height = 200 });
         editor.TextArea.Focus();
         editor.CaretOffset = 2;
         var request = assist.RequestAsync(delay: TimeSpan.Zero);
@@ -175,7 +172,7 @@ public class EditorCompletionTests : TestsBase
         });
         var assist = new EditorAssist(editor, session.Object);
         assist.Attach();
-        using var shown = TestSupport.Show(new() { Content = editor, Width = 400, Height = 200 });
+        using var shown = _ui.Show(new() { Content = editor, Width = 400, Height = 200 });
         editor.TextArea.Focus();
         var request = assist.RequestHoverAsync(0);
         await delayed.Started.Task;
@@ -203,7 +200,7 @@ public class EditorCompletionTests : TestsBase
     public async Task RequestCompletion_SpaceDuringDebounce_AdvancesInsightParameter()
     {
         var editor = OpenEditor("core.std.Crop(10,");
-        using var shown = TestSupport.Show(new() { Content = editor });
+        using var shown = _ui.Show(new() { Content = editor });
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         _ = editor.RequestCompletionAsync(showCompletion: false, delay: TimeSpan.FromMilliseconds(80));
@@ -220,7 +217,7 @@ public class EditorCompletionTests : TestsBase
     public async Task RequestCompletion_SecondArg_ShowsInsightWithoutList()
     {
         var editor = OpenEditor("core.std.Crop(10, 20");
-        using var shown = TestSupport.Show(new() { Content = editor });
+        using var shown = _ui.Show(new() { Content = editor });
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
 
@@ -235,7 +232,7 @@ public class EditorCompletionTests : TestsBase
     public async Task RequestCompletion_CaretMoves_UpdatesInsightWithoutList()
     {
         var editor = OpenEditor("core.std.Crop(10, 20");
-        using var shown = TestSupport.Show(new() { Content = editor });
+        using var shown = _ui.Show(new() { Content = editor });
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         await editor.RequestCompletionAsync(showCompletion: false, delay: TimeSpan.Zero);
@@ -252,7 +249,7 @@ public class EditorCompletionTests : TestsBase
     public async Task RequestCompletion_CommaRemoved_KeepsInsightWithoutList()
     {
         var editor = OpenEditor("core.std.Crop(10, 20");
-        using var shown = TestSupport.Show(new() { Content = editor });
+        using var shown = _ui.Show(new() { Content = editor });
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         await editor.RequestCompletionAsync(showCompletion: false, delay: TimeSpan.Zero);
@@ -272,12 +269,12 @@ public class EditorCompletionTests : TestsBase
     {
         var editor = OpenEditor("core.std.Crop(10, 20");
         var window = new Window { Content = editor };
-        using var shown = TestSupport.Show(window);
+        using var shown = _ui.Show(window);
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         await editor.RequestCompletionAsync(showCompletion: false, delay: TimeSpan.Zero);
 
-        TestSupport.Press(window, Key.Space, RawInputModifiers.Control | RawInputModifiers.Shift);
+        _ui.Press(window, Key.Space, RawInputModifiers.Control | RawInputModifiers.Shift);
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         Assert.Null(editor.Completion);
@@ -291,7 +288,7 @@ public class EditorCompletionTests : TestsBase
         var service = new DelayedService();
         var editor = new BindableTextEditor { Text = "core.std.Crop(co" };
         UseService(editor, service);
-        using var shown = TestSupport.Show(new() { Content = editor });
+        using var shown = _ui.Show(new() { Content = editor });
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         service.Reply.SetResult(Service().Analyze(editor.Text, editor.CaretOffset, Vs));
@@ -309,7 +306,7 @@ public class EditorCompletionTests : TestsBase
     {
         var editor = OpenEditor("core.std.Cr");
         var window = new Window { Content = editor };
-        using var shown = TestSupport.Show(window);
+        using var shown = _ui.Show(window);
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         await editor.RequestCompletionAsync(delay: TimeSpan.Zero);
@@ -326,7 +323,7 @@ public class EditorCompletionTests : TestsBase
     public async Task RequestCompletion_MemberDot_ShowsListWithoutInsight()
     {
         var editor = OpenEditor("core.std.Crop(core.rife.");
-        using var shown = TestSupport.Show(new() { Content = editor });
+        using var shown = _ui.Show(new() { Content = editor });
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
 
@@ -342,7 +339,7 @@ public class EditorCompletionTests : TestsBase
     public async Task RequestCompletion_ShowCompletionFalse_ShowsInsightWithoutList()
     {
         var editor = OpenEditor("core.std.Crop(core.rife.");
-        using var shown = TestSupport.Show(new() { Content = editor });
+        using var shown = _ui.Show(new() { Content = editor });
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
 
@@ -358,18 +355,18 @@ public class EditorCompletionTests : TestsBase
     {
         var editor = OpenEditor("core.std.Cr");
         var window = new Window { Content = editor };
-        using var shown = TestSupport.Show(window);
+        using var shown = _ui.Show(window);
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         await editor.RequestCompletionAsync(delay: TimeSpan.Zero);
 
-        TestSupport.Press(window, Key.Tab);
+        _ui.Press(window, Key.Tab);
         window.KeyTextInput("(");
         await Task.Delay(250, TestContext.Current.CancellationToken);
         var text = editor.Text;
         var insight = editor.DisplayedReply?.Insight;
         var completion = editor.Completion;
-        TestSupport.Press(window, Key.Escape);
+        _ui.Press(window, Key.Escape);
 
         Assert.Equal("core.std.Crop(", text);
         Assert.NotNull(insight);
@@ -382,7 +379,7 @@ public class EditorCompletionTests : TestsBase
     {
         var editor = OpenEditor("core.std.Cr");
         var window = new Window { Content = editor, Width = 640, Height = 320 };
-        using var shown = TestSupport.Show(window);
+        using var shown = _ui.Show(window);
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         await editor.RequestCompletionAsync(delay: TimeSpan.Zero);
@@ -402,7 +399,7 @@ public class EditorCompletionTests : TestsBase
     {
         var editor = OpenEditor("core.std.Cr");
         var window = new Window { Content = editor, Width = 640, Height = 320 };
-        using var shown = TestSupport.Show(window);
+        using var shown = _ui.Show(window);
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Text.Length;
         await editor.RequestCompletionAsync(delay: TimeSpan.Zero);
@@ -427,7 +424,7 @@ public class EditorCompletionTests : TestsBase
         var service = new DelayedService();
         var editor = new BindableTextEditor { Text = "core.std.Crop(" };
         UseService(editor, service);
-        using var shown = TestSupport.Show(new() { Content = editor, Width = 640, Height = 300 });
+        using var shown = _ui.Show(new() { Content = editor, Width = 640, Height = 300 });
         editor.TextArea.Focus();
         editor.CaretOffset = editor.Document.TextLength;
         var request = editor.RequestCompletionAsync(true, TimeSpan.Zero);
