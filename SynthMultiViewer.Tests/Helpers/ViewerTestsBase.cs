@@ -48,7 +48,7 @@ public abstract class ViewerTestsBase
         }
         if (type == typeof(SavePresetViewModel))
         {
-            return new SavePresetViewModel(SettingsFake);
+            return new SavePresetViewModel(SettingsFake, Dialogs);
         }
         return Activator.CreateInstance(type)!;
     }

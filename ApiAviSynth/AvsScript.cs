@@ -119,15 +119,14 @@ public sealed class AvsScript : IDisposable
     }
 
     /// <summary>
-    /// Evaluates AviSynth script text and returns its video clip.
-    /// </summary>
-    public static AvsScript LoadScript(string script) => LoadScript(script, null);
-
-    /// <summary>
     /// Evaluates AviSynth script text. <paramref name="scriptPath"/> is not read; its directory
-    /// becomes the working directory for relative source paths.
+    /// becomes the working directory for relative source paths. Display conversion can be
+    /// disabled when processing the original clip without previewing it.
     /// </summary>
-    public static AvsScript LoadScript(string script, string? scriptPath)
+    /// <param name="script">The AviSynth script text to evaluate.</param>
+    /// <param name="scriptPath">The source path used to resolve relative paths, or null for an unsaved script.</param>
+    /// <param name="convertForDisplay">Whether to prepare a converted clip for preview; defaults to true.</param>
+    public static AvsScript LoadScript(string script, string? scriptPath = null, bool convertForDisplay = true)
     {
         script.CheckNotNullOrEmpty();
         var resolvedPath = scriptPath.HasText() ? ResolveScriptPath(scriptPath) : null;
@@ -142,7 +141,7 @@ public sealed class AvsScript : IDisposable
             }
 
             return EvalClip(native, environment, script, "AviSynth could not evaluate the script.");
-        });
+        }, convertForDisplay);
     }
 
     private const string ProbeScript = """BlankClip(length=1, width=16, height=16, pixel_type="RGB24")""";
@@ -162,7 +161,7 @@ IsRGB() ? ConvertToRGB32() : ConvertToRGB32(matrix=mat)
 
     private static string Escape(string value) => value.Replace("\"", "\"\"", StringComparison.Ordinal);
 
-    private static AvsScript Load(Func<AvsNative, IntPtr, AvsValue> evaluateUser)
+    private static AvsScript Load(Func<AvsNative, IntPtr, AvsValue> evaluateUser, bool convertForDisplay = true)
     {
         var native = AvsNative.Load();
         var environment = native.CreateEnvironment();
@@ -184,6 +183,13 @@ IsRGB() ? ConvertToRGB32() : ConvertToRGB32(matrix=mat)
                 }
 
                 var sourceInfo = native.GetVideoInfo(sourceClip);
+                if (!convertForDisplay)
+                {
+                    var sourceScript = new AvsScript(native, environment, sourceClip, sourceClip, sourceInfo);
+                    sourceClip = IntPtr.Zero;
+                    return sourceScript;
+                }
+
                 native.SetVar(environment, "last", user);
                 var result = Eval(native, environment, DisplayConversion,
                     "AviSynth could not convert the output for display.");
@@ -247,7 +253,7 @@ IsRGB() ? ConvertToRGB32() : ConvertToRGB32(matrix=mat)
     }
 
     /// <summary>
-    /// Gets the script video information after display conversion.
+    /// Gets the script video information after display conversion, when enabled.
     /// </summary>
     public AvsVideoInfo VideoInfo
     {
@@ -264,12 +270,16 @@ IsRGB() ? ConvertToRGB32() : ConvertToRGB32(matrix=mat)
     public AvsVideoInfo SourceVideoInfo { get; }
 
     /// <summary>
-    /// Gets a video frame. The returned frame must be disposed.
+    /// Gets a video frame from the prepared display clip or the original source.
+    /// The returned frame must be disposed.
     /// </summary>
-    public AvsFrame GetFrame(int index)
+    /// <param name="index">The zero-based frame index.</param>
+    /// <param name="convertForDisplay">Whether to use the display clip, if conversion was enabled when loading.</param>
+    public AvsFrame GetFrame(int index, bool convertForDisplay = true)
     {
-        ObjectDisposedException.ThrowIf(_clip == IntPtr.Zero, this);
-        var frame = _native.GetFrame(_clip, index);
+        var clip = convertForDisplay ? _clip : _sourceClip;
+        ObjectDisposedException.ThrowIf(clip == IntPtr.Zero, this);
+        var frame = _native.GetFrame(clip, index);
         if (frame == IntPtr.Zero)
         {
             throw new AvsException("AviSynth could not return the requested frame.");
@@ -323,6 +333,8 @@ IsRGB() ? ConvertToRGB32() : ConvertToRGB32(matrix=mat)
     public void Dispose()
     {
         if (_environment == IntPtr.Zero) { return; }
+
+        if (_clip == _sourceClip) { _clip = IntPtr.Zero; }
 
         if (_clip != IntPtr.Zero)
         {

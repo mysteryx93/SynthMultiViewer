@@ -1,7 +1,6 @@
 using System.Globalization;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
-using HanumanInstitute.ScriptAssist;
 using HanumanInstitute.ScriptAssist.AvaloniaEdit;
 
 namespace HanumanInstitute.SynthMultiViewer.Helpers;

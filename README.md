@@ -74,7 +74,6 @@ This repo also contains .NET API wrapper for [VapourSynth](ApiVapourSynth/) and 
 
 ### TODO
 
-- Encode
 - Pipette — YUV/RGB under the cursor
 - Masks
 - Plane view — Y / U / V (or RGB) as a display mode

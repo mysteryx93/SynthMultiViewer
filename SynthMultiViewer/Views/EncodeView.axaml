@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
+        x:Class="HanumanInstitute.SynthMultiViewer.Views.EncodeView"
+        x:DataType="vm:EncodeViewModel"
+        Title="{Binding DisplayName}"
+        Width="640" Height="260"
+        MinWidth="560" MinHeight="240"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner">
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding Close}" />
+    </Window.KeyBindings>
+    <DockPanel Classes="dialog-content">
+        <StackPanel DockPanel.Dock="Bottom" Classes="dialog-actions">
+            <Button Content="Start" Command="{Binding Start}" />
+            <Button Content="Close" Command="{Binding Close}" />
+        </StackPanel>
+        <Grid ColumnDefinitions="88,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+              ColumnSpacing="8" RowSpacing="8">
+            <TextBlock Grid.ColumnSpan="2" Text="{Binding ScriptName}" FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock Grid.Row="1" Text="Destination" VerticalAlignment="Center" />
+            <DockPanel Grid.Row="1" Grid.Column="1">
+                <Button DockPanel.Dock="Right" Content="Browse..." Margin="8,0,0,0"
+                        Command="{Binding Browse}" />
+                <TextBox Text="{Binding Destination}" VerticalAlignment="Center" />
+            </DockPanel>
+            <TextBlock Grid.Row="2" Text="Start frame" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <NumericUpDown Value="{Binding StartFrame}" Width="80" Minimum="0"
+                               FormatString="0" ParsingNumberStyle="Integer" ShowButtonSpinner="False" />
+                <TextBlock Text="Max length" VerticalAlignment="Center" />
+                <NumericUpDown Value="{Binding MaxLength}" Width="80" Minimum="1"
+                               FormatString="0" ParsingNumberStyle="Integer" ShowButtonSpinner="False" />
+            </StackPanel>
+            <TextBlock Grid.Row="3" Text="Preset" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <ComboBox Width="180" ItemsSource="{Binding Presets}"
+                          SelectedItem="{Binding Presets.CurrentItem}" />
+                <Button Content="Save" Command="{Binding SavePreset}" />
+            </StackPanel>
+            <TextBlock Grid.Row="4" Text="Arguments" VerticalAlignment="Center" />
+            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding Arguments}"
+                     VerticalAlignment="Center" />
+            <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Text="{Binding Status}" TextWrapping="Wrap" />
+        </Grid>
+    </DockPanel>
+</Window>

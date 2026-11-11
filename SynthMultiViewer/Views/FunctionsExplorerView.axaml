@@ -59,11 +59,11 @@
             </Grid>
             <Grid>
                 <Grid ColumnDefinitions="160,*" ColumnSpacing="8" IsVisible="{Binding !IsSearching}">
-                    <ListBox x:Name="GroupsList" Classes="compact" ItemsSource="{Binding Groups}"
+                    <ListBox x:Name="GroupsList" Classes="text-search" ItemsSource="{Binding Groups}"
                              SelectedItem="{Binding SelectedGroup}">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="sa:BrowseGroup">
-                                <Border Background="Transparent" Padding="4,0"
+                                <Border Background="Transparent"
                                         HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                         ToolTip.Tip="{Binding Tip}"
                                         ToolTip.Placement="Pointer"
@@ -78,13 +78,13 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <ListBox x:Name="FunctionsList" Grid.Column="1" Classes="compact"
+                    <ListBox x:Name="FunctionsList" Grid.Column="1" Classes="text-search"
                              ItemsSource="{Binding Functions}"
                              SelectedItem="{Binding SelectedFunction}"
                              DoubleTapped="OnFunctionDoubleTapped">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="sa:BrowseFunction">
-                                <Border Background="Transparent" Padding="4,0"
+                                <Border Background="Transparent"
                                         HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                         ToolTip.Tip="{Binding Signature}"
                                         ToolTip.Placement="Pointer"
@@ -99,12 +99,12 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Grid>
-                <ListBox x:Name="HitsList" Classes="compact" IsVisible="{Binding IsSearching}"
+                <ListBox x:Name="HitsList" Classes="text-search" IsVisible="{Binding IsSearching}"
                          ItemsSource="{Binding Hits}" SelectedItem="{Binding SelectedHit}"
                          DoubleTapped="OnFunctionDoubleTapped">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="vm:FunctionHit">
-                            <Border Background="Transparent" Padding="4,0"
+                            <Border Background="Transparent"
                                     HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                     ToolTip.Tip="{Binding Signature}"
                                     ToolTip.Placement="Pointer"

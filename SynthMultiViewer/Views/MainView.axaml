@@ -38,6 +38,8 @@
         <KeyBinding Gesture="Ctrl+T" Command="{Binding ChangeTabColor}" />
         <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding Settings}" />
         <KeyBinding Gesture="F5" Command="{Binding Run}" />
+        <KeyBinding Gesture="F6" Command="{Binding Benchmark}" />
+        <KeyBinding Gesture="F7" Command="{Binding Encode}" />
         <KeyBinding Gesture="Ctrl+F6" Command="{Binding UpdateAll}" />
         <KeyBinding Gesture="F8" Command="{Binding ToggleMultiThreaded}" />
         <KeyBinding Gesture="F9" Command="{Binding ToggleSquarePixels}" />
@@ -109,10 +111,19 @@
                           IsVisible="{Binding IsViewerSelected}"
                           ToolTip.Tip="Zoom (+/-)" ItemsSource="{Binding ZoomList}"
                           h:ComboBoxCommit.Enabled="True"
-                          SelectedItem="{Binding Zoom, Converter={StaticResource ZoomConverter}, Mode=TwoWay}"
+                          SelectedItem="{Binding ZoomList.CurrentItem}"
                           Text="{Binding Zoom, Converter={StaticResource ZoomConverter}, Mode=TwoWay,
                                  UpdateSourceTrigger=Explicit}" />
                 <Separator IsVisible="{Binding IsViewerSelected}" />
+                <Button ToolTip.Tip="Benchmark (F6)" Command="{Binding Benchmark}"
+                              IsVisible="{Binding !IsStartVisible}">
+                    <Image Source="/Assets/Icons/Benchmark.webp" Classes="enabled" />
+                </Button>
+                <Button ToolTip.Tip="Encode (F7)" Command="{Binding Encode}"
+                              IsVisible="{Binding !IsStartVisible}">
+                    <Image Source="/Assets/Icons/Encode.webp" Classes="enabled" />
+                </Button>
+                <Separator IsVisible="{Binding !IsStartVisible}" />
                 <Button ToolTip.Tip="New VapourSynth script (Ctrl+N)" Command="{Binding New}">
                     <Image Source="/Assets/Icons/NewVs.webp" Classes="enabled" />
                 </Button>
@@ -214,14 +225,15 @@
                         <StackPanel x:Name="StartRecentsPanel" Spacing="4" ClipToBounds="True"
                                     IsVisible="{Binding HasRecents}" Margin="0,8,0,0"
                                     Width="{Binding #StartActions.Bounds.Width}">
-                            <TextBlock Text="Recent" Opacity="0.65" FontWeight="SemiBold" />
+                            <TextBlock Text="Recent" Opacity="0.65" FontWeight="SemiBold"
+                                       Margin="8,0,0,0" />
                             <ItemsControl x:Name="StartRecents" ItemsSource="{Binding Recents}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:RecentFileItem">
                                         <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                                 Background="Transparent" BorderBrush="Transparent"
                                                 BorderThickness="0"
-                                                Padding="0,4" ClipToBounds="True"
+                                                Padding="8,0" ClipToBounds="True"
                                                 Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).OpenRecent}"
                                                 CommandParameter="{Binding Path}" ToolTip.Tip="{Binding Path}">
                                             <TextBlock Text="{Binding Name}" TextWrapping="NoWrap"

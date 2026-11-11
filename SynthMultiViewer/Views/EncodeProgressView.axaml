@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
+        x:Class="HanumanInstitute.SynthMultiViewer.Views.EncodeProgressView"
+        x:DataType="vm:EncodeProgressViewModel"
+        Title="{Binding TitleWithStatus}"
+        ShowInTaskbar="False"
+        CanResize="False"
+        Height="80" MinHeight="80" MaxHeight="80"
+        Width="426" MinWidth="426" MaxWidth="426"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="10">
+        <ProgressBar Height="20" VerticalAlignment="Top"
+                     Value="{Binding ProgressBarValue}"
+                     Maximum="{Binding ProgressBarMax}" />
+        <TextBlock Margin="5,2,0,2" Text="{Binding TaskName}" />
+        <Grid Margin="0,30,0,0">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Top" Height="30">
+                <StackPanel.Styles>
+                    <Style Selector="TextBlock">
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                    </Style>
+                </StackPanel.Styles>
+                <TextBlock Text="{Binding Status}" Width="80" />
+                <TextBlock Text="Fps: " />
+                <TextBlock Text="{Binding Fps}" Width="50" />
+                <TextBlock Text="Time left: " />
+                <TextBlock Text="{Binding TimeLeft}" Width="50" />
+            </StackPanel>
+            <Button HorizontalAlignment="Right" VerticalAlignment="Top" Height="30" Width="75"
+                    Content="{Binding CancelText}" IsCancel="True"
+                    Command="{Binding Close}" />
+        </Grid>
+    </Grid>
+</Window>

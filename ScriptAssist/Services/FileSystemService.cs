@@ -33,6 +33,8 @@ public class FileSystemService : IFileSystemService
     public IFileVersionInfoFactory FileVersionInfo => _fileSystem.FileVersionInfo;
     /// <inheritdoc />
     public IPath Path => _fileSystem.Path;
+    /// <inheritdoc />
+    public IRandomAccess RandomAccess => _fileSystem.RandomAccess;
 
     /// <inheritdoc />
     public virtual void EnsureDirectoryExists(string path)

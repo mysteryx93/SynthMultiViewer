@@ -82,23 +82,27 @@ public sealed class VsScript : IDisposable
     }
 
     /// <summary>
-    /// Loads script text.
-    /// </summary>
-    public static VsScript LoadScript(string script) => LoadScript(script, null);
-
-    /// <summary>
     /// Loads script text using an optional source path for error messages, <c>__file__</c>,
     /// and relative imports. VapourSynth evaluates the buffer; the path is not read from disk.
-    /// Omit the path for unsaved text so evaluation does not invent a working directory.
+    /// Display conversion can be disabled when processing without previewing.
     /// </summary>
-    public static VsScript LoadScript(string script, string? scriptPath)
+    /// <param name="script">The VapourSynth script text to evaluate.</param>
+    /// <param name="scriptPath">The source path used for relative imports and diagnostics, or null for an unsaved script.</param>
+    /// <param name="convertForDisplay">Whether to convert output 0 for preview; defaults to true.</param>
+    public static VsScript LoadScript(string script, string? scriptPath = null, bool convertForDisplay = true)
     {
         script.CheckNotNullOrEmpty();
         var environment = CreateEmpty();
         try
         {
             environment.EvaluateBuffer(script, scriptPath);
-            environment.CaptureSourceThenConvert();
+            environment._sourceOutput = environment.GetOutput(0);
+            environment.SourceVideoInfo = environment._sourceOutput.VideoInfo;
+            if (convertForDisplay)
+            {
+                environment.ConvertOutputToRgb24();
+            }
+
             return environment;
         }
         catch
@@ -188,17 +192,6 @@ public sealed class VsScript : IDisposable
     {
         using var buffer = new Utf8Ptr(script);
         EvaluateNamedBuffer(buffer.ptr, scriptPath, "VapourSynth could not evaluate the script.");
-    }
-
-    /// <summary>
-    /// Holds the script output before display conversion so clip info and frame
-    /// properties are not read from the RGB24 display node.
-    /// </summary>
-    private void CaptureSourceThenConvert()
-    {
-        _sourceOutput = GetOutput(0);
-        SourceVideoInfo = _sourceOutput.VideoInfo;
-        ConvertOutputToRgb24();
     }
 
     /// <summary>

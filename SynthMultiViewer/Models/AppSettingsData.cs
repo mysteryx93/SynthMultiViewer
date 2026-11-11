@@ -49,4 +49,14 @@ public class AppSettingsData
     /// Gets or sets the date of the last automatic check for updates.
     /// </summary>
     public DateTime? LastCheckForUpdate { get; set; }
+
+    /// <summary>
+    /// Gets or sets the FFmpeg executable. Empty uses ffmpeg on PATH.
+    /// </summary>
+    public string FFmpegPath { get; set; } = "";
+
+    /// <summary>
+    /// Gets or sets the encode argument presets.
+    /// </summary>
+    public List<EncodePreset> EncodePresets { get; set; } = [];
 }

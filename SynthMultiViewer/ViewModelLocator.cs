@@ -1,9 +1,11 @@
 using System.IO.Abstractions;
+using HanumanInstitute.FFmpeg;
 using HanumanInstitute.ScriptAssist.Services;
 using HanumanInstitute.SynthMultiViewer.Models;
 using HanumanInstitute.SynthMultiViewer.Services;
 using HanumanInstitute.MvvmDialogs;
 using HanumanInstitute.MvvmDialogs.Avalonia;
+using Microsoft.Extensions.Options;
 using Splat;
 
 namespace HanumanInstitute.SynthMultiViewer.ViewModels;
@@ -43,9 +45,27 @@ public static class ViewModelLocator
         SplatRegistrations.Register<SettingsViewModel>();
         SplatRegistrations.Register<VideoPropertiesViewModel>();
         SplatRegistrations.Register<FunctionsExplorerViewModel>();
+        SplatRegistrations.Register<EncodeViewModel>();
+        SplatRegistrations.Register<SavePresetViewModel>();
+        SplatRegistrations.Register<EncodeProgressViewModel>();
+        SplatRegistrations.Register<EncodeErrorViewModel>();
+        SplatRegistrations.Register<BenchmarkViewModel>();
         SplatRegistrations.Register<TabColorViewModel>();
         SplatRegistrations.Register<EditorViewModel>();
         SplatRegistrations.Register<ViewerViewModel>();
+
+        // FFmpeg
+        container.RegisterLazySingleton<IEncoderService>(() => new EncoderService(
+            Locator.Current.GetService<IProcessManager>().CheckNotNull(),
+            Locator.Current.GetService<IUserInterfaceManager>().CheckNotNull()));
+        SplatRegistrations.RegisterConstant(Options.Create(new AppPaths()));
+        SplatRegistrations.RegisterLazySingleton<IProcessManager, ProcessManager>();
+        SplatRegistrations.RegisterLazySingleton<IUserInterfaceManager, FFmpegUserInterfaceManager>();
+        SplatRegistrations.Register<IMediaEncoder, MediaEncoder>();
+        SplatRegistrations.Register<IMediaMuxer, MediaMuxer>();
+        SplatRegistrations.Register<IMediaInfoReader, MediaInfoReader>();
+        SplatRegistrations.Register<IMediaScript, MediaScript>();
+
         SplatRegistrations.SetupIOC();
     }
 

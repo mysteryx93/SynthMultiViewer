@@ -20,15 +20,20 @@
         <StackPanel Spacing="4">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Theme" VerticalAlignment="Center" Width="72" />
-                <ComboBox Width="140" ItemsSource="{Binding ThemeList}" SelectedItem="{Binding Theme}" />
+                <ComboBox Width="140" ItemsSource="{Binding ThemeList}"
+                          SelectedItem="{Binding ThemeList.CurrentItem}" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Check for Updates" VerticalAlignment="Center" />
                 <ComboBox Margin="12,0,0,0" Width="120" ItemsSource="{Binding CheckForUpdateList}"
-                          SelectedItem="{Binding CheckForUpdates}" />
+                          SelectedItem="{Binding CheckForUpdateList.CurrentItem}" />
             </StackPanel>
             <CheckBox Content="Enhance editor with auto-complete"
                       IsChecked="{Binding EnhanceEditorWithAutoComplete}" />
+            <DockPanel>
+                <TextBlock Text="FFmpeg path" Width="100" VerticalAlignment="Center" />
+                <TextBox PlaceholderText="ffmpeg" Text="{Binding FFmpegPath}" />
+            </DockPanel>
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
                 <TextBlock FontWeight="SemiBold" FontSize="16" Text="VapourSynth"
                            VerticalAlignment="Center" />

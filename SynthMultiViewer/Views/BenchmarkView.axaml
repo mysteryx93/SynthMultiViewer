@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
+        x:Class="HanumanInstitute.SynthMultiViewer.Views.BenchmarkView"
+        x:DataType="vm:BenchmarkViewModel"
+        Title="{Binding DisplayName}"
+        Width="420" Height="290"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding Close}" />
+    </Window.KeyBindings>
+    <DockPanel Classes="dialog-content">
+        <StackPanel DockPanel.Dock="Bottom" Classes="dialog-actions">
+            <Button Content="Start" Command="{Binding Start}" />
+            <Button Content="Abort" Command="{Binding Abort}" />
+            <Button Content="Close" Command="{Binding Close}" />
+        </StackPanel>
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" RowSpacing="6">
+            <TextBlock Grid.Row="0" Text="{Binding ScriptName}" FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis" />
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Start frame" Width="88" VerticalAlignment="Center" />
+                <NumericUpDown Value="{Binding StartFrame}" Width="80" Minimum="0"
+                               FormatString="0" ParsingNumberStyle="Integer" ShowButtonSpinner="False" />
+                <TextBlock Text="Max length" VerticalAlignment="Center" />
+                <NumericUpDown Value="{Binding MaxLength}" Width="80" Minimum="1"
+                               FormatString="0" ParsingNumberStyle="Integer" ShowButtonSpinner="False" />
+            </StackPanel>
+            <CheckBox Grid.Row="2" Content="Enable multi-threading" IsChecked="{Binding IsMultiThreaded}"
+                      IsVisible="{Binding IsVapourSynth}" />
+            <StackPanel Grid.Row="3" HorizontalAlignment="Center" Margin="0,4,0,0">
+                <TextBlock Text="{Binding AverageFps}" FontSize="28" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="average fps" Opacity="0.65" HorizontalAlignment="Center" />
+            </StackPanel>
+            <Grid Grid.Row="4" ColumnDefinitions="88,*,88,*" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Frames" Opacity="0.65" Margin="0,2" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Frames}" Margin="0,2" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Elapsed" Opacity="0.65" Margin="0,2" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Elapsed}" Margin="0,2" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="Left" Opacity="0.65" Margin="0,2" />
+                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding Remaining}" Margin="0,2" />
+            </Grid>
+            <TextBlock Grid.Row="5" Text="{Binding Status}" TextWrapping="Wrap" />
+        </Grid>
+    </DockPanel>
+</Window>

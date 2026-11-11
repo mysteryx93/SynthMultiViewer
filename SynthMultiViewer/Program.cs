@@ -32,6 +32,7 @@ internal static class Program
             .UsePlatformDetect()
             .With(new X11PlatformOptions { WmClass = DesktopId })
             .LogToTrace()
+            .WithDataAnnotationsValidation()
             .UseReactiveUI(_ => { });
     }
 

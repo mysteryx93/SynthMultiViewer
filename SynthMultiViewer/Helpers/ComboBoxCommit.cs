@@ -9,7 +9,6 @@ using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
-using HanumanInstitute.MediaSynthUI;
 
 namespace HanumanInstitute.SynthMultiViewer.Helpers;
 

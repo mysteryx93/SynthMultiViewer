@@ -11,4 +11,6 @@ namespace HanumanInstitute.SynthMultiViewer.Services;
 [JsonSerializable(typeof(AppTheme))]
 [JsonSerializable(typeof(UpdateInterval))]
 [JsonSerializable(typeof(AppVersionInfo))]
+[JsonSerializable(typeof(EncodePreset))]
+[JsonSerializable(typeof(List<EncodePreset>))]
 internal partial class AppJsonContext : JsonSerializerContext;

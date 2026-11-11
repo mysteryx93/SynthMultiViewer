@@ -14,16 +14,17 @@
     <PackageVersion Include="Splat" Version="21.0.0" />
     <PackageVersion Include="Splat.DependencyInjection.SourceGenerator" Version="3.0.0" />
     <PackageVersion Include="HanumanInstitute.Validators" Version="2.1.8" />
+    <PackageVersion Include="HanumanInstitute.FFmpeg" Version="3.2.0" />
     <PackageVersion Include="HanumanInstitute.MvvmDialogs" Version="2.4.0" />
     <PackageVersion Include="HanumanInstitute.MvvmDialogs.Avalonia" Version="2.4.0" />
     <PackageVersion Include="HanumanInstitute.MvvmDialogs.Avalonia.MessageBox" Version="2.4.0" />
     <PackageVersion Include="MediaPlayer.Avalonia" Version="2.1.2" />
     <PackageVersion Include="Avalonia.Headless.XUnit" Version="12.1.6" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.1" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="Moq" Version="4.21.0" />
-    <PackageVersion Include="System.IO.Abstractions" Version="22.3.0" />
-    <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="22.3.0" />
+    <PackageVersion Include="System.IO.Abstractions" Version="23.0.0" />
+    <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="23.0.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="Xaml.Behaviors.Interactions.Draggable" Version="12.1.5" />
   </ItemGroup>

@@ -19,6 +19,11 @@ public class ViewLocator : StrongViewLocator
         Register<SettingsViewModel, SettingsView>();
         Register<VideoPropertiesViewModel, VideoPropertiesView>();
         Register<FunctionsExplorerViewModel, FunctionsExplorerView>();
+        Register<EncodeViewModel, EncodeView>();
+        Register<SavePresetViewModel, SavePresetView>();
+        Register<EncodeProgressViewModel, EncodeProgressView>();
+        Register<EncodeErrorViewModel, EncodeErrorView>();
+        Register<BenchmarkViewModel, BenchmarkView>();
         Register<TabColorViewModel, TabColorView>();
         Register<EditorViewModel, EditorView>();
         Register<ViewerViewModel, ViewerView>();

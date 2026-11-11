@@ -48,6 +48,8 @@
                         <Run Text="Ctrl+S: Save" /><LineBreak />
                         <Run Text="Ctrl+Shift+S: Save as" /><LineBreak />
                         <Run Text="F5: Run" /><LineBreak />
+                        <Run Text="F6: Benchmark" /><LineBreak />
+                        <Run Text="F7: Encode" /><LineBreak />
                         <Run Text="Ctrl+F4: Close tab" />
                     </TextBlock>
                     <TextBlock FontWeight="SemiBold" Text="Tabs" />

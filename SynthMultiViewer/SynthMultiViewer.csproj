@@ -33,7 +33,6 @@
     <PackageReference Include="ReactiveUI.Avalonia" />
     <PackageReference Include="ReactiveUI.SourceGenerators">
       <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Splat" />
     <PackageReference Include="Splat.DependencyInjection.SourceGenerator">
@@ -41,6 +40,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="HanumanInstitute.Validators" />
+    <PackageReference Include="HanumanInstitute.FFmpeg" />
     <PackageReference Include="System.IO.Abstractions" />
     <PackageReference Include="HanumanInstitute.MvvmDialogs" />
     <PackageReference Include="HanumanInstitute.MvvmDialogs.Avalonia" />

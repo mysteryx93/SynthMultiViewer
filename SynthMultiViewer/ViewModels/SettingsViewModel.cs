@@ -1,3 +1,5 @@
+using System.Reactive.Linq;
+using HanumanInstitute.SynthMultiViewer.Controls;
 using HanumanInstitute.MvvmDialogs;
 using HanumanInstitute.SynthMultiViewer.Models;
 using HanumanInstitute.SynthMultiViewer.Services;
@@ -27,7 +29,14 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
         VapourSynthThreads = EffectiveThreads(settingsProvider.Value.VapourSynthThreads);
         EnhanceEditorWithAutoComplete = settingsProvider.Value.EnhanceEditorWithAutoComplete;
         CheckForUpdates = settingsProvider.Value.CheckForUpdates;
+        FFmpegPath = settingsProvider.Value.FFmpegPath;
         ApplyDetection(_frameworks.VapourSynth, _frameworks.AviSynth);
+        ThemeList.SelectedValue = Theme;
+        CheckForUpdateList.SelectedValue = CheckForUpdates;
+        this.WhenAnyValue(x => x.Theme).Subscribe(theme => ThemeList.SelectedValue = theme);
+        this.WhenAnyValue(x => x.CheckForUpdates).Subscribe(interval => CheckForUpdateList.SelectedValue = interval);
+        this.WhenAnyValue(x => x.ThemeList.SelectedValue).Subscribe(ApplyThemeChoice);
+        this.WhenAnyValue(x => x.CheckForUpdateList.SelectedValue).Subscribe(ApplyUpdateChoice);
     }
 
     /// <inheritdoc />
@@ -40,9 +49,14 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     public partial AppTheme Theme { get; set; }
 
     /// <summary>
-    /// Gets the list of themes for display.
+    /// Gets the themes for display. Light, the default, is first.
+    /// The combo reflects <see cref="Theme"/>.
     /// </summary>
-    public IReadOnlyList<AppTheme> ThemeList { get; } = [AppTheme.Light, AppTheme.Dark];
+    public ListItemCollectionView<AppTheme> ThemeList { get; } = new()
+    {
+        { AppTheme.Light, "Light" },
+        { AppTheme.Dark, "Dark" }
+    };
 
     /// <summary>
     /// Gets or sets when to automatically check for updates.
@@ -51,17 +65,18 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     public partial UpdateInterval CheckForUpdates { get; set; }
 
     /// <summary>
-    /// Gets the list of update intervals for display.
+    /// Gets the update intervals for display.
+    /// The combo reflects <see cref="CheckForUpdates"/>.
     /// </summary>
-    public IReadOnlyList<UpdateInterval> CheckForUpdateList { get; } =
-    [
-        UpdateInterval.Daily,
-        UpdateInterval.Biweekly,
-        UpdateInterval.Weekly,
-        UpdateInterval.Bimonthly,
-        UpdateInterval.Monthly,
-        UpdateInterval.Never
-    ];
+    public ListItemCollectionView<UpdateInterval> CheckForUpdateList { get; } = new()
+    {
+        { UpdateInterval.Daily, "Daily" },
+        { UpdateInterval.Biweekly, "Biweekly" },
+        { UpdateInterval.Weekly, "Weekly" },
+        { UpdateInterval.Bimonthly, "Bimonthly" },
+        { UpdateInterval.Monthly, "Monthly" },
+        { UpdateInterval.Never, "Never" }
+    };
 
     /// <summary>
     /// Gets or sets the VapourSynth worker count used when multi-threading is enabled.
@@ -74,6 +89,12 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     /// </summary>
     [Reactive]
     public partial bool EnhanceEditorWithAutoComplete { get; set; }
+
+    /// <summary>
+    /// Gets or sets the FFmpeg executable. Empty uses ffmpeg on PATH.
+    /// </summary>
+    [Reactive]
+    public partial string FFmpegPath { get; set; } = "";
 
     /// <summary>
     /// Gets whether VapourSynth was loaded.
@@ -155,6 +176,12 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
     /// </summary>
     public RxCommandVoid RestoreDefault => field ??= ReactiveCommand.Create(RestoreDefaultImpl);
 
+    // Writes a chosen theme back onto the setting. The list is the display of that setting.
+    private void ApplyThemeChoice(AppTheme theme) => Theme = theme;
+
+    // Writes a chosen interval back onto the setting.
+    private void ApplyUpdateChoice(UpdateInterval interval) => CheckForUpdates = interval;
+
     private void OkImpl()
     {
         SaveSettings();
@@ -168,6 +195,7 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
         _settingsProvider.Value.VapourSynthThreads = Math.Max(1, VapourSynthThreads);
         _settingsProvider.Value.EnhanceEditorWithAutoComplete = EnhanceEditorWithAutoComplete;
         _settingsProvider.Value.CheckForUpdates = CheckForUpdates;
+        _settingsProvider.Value.FFmpegPath = FFmpegPath.Trim();
         _appTheme.RequestedTheme = Theme.ToString();
         _frameworks.Apply(_settingsProvider.Value);
         ApplyDetection(_frameworks.VapourSynth, _frameworks.AviSynth);
@@ -180,6 +208,7 @@ public partial class SettingsViewModel : WorkspaceViewModel, IModalDialogViewMod
         VapourSynthThreads = Environment.ProcessorCount;
         EnhanceEditorWithAutoComplete = true;
         CheckForUpdates = UpdateInterval.Biweekly;
+        FFmpegPath = "";
     }
 
     private void ApplyDetection(FrameworkInstall vapourSynth, FrameworkInstall aviSynth)

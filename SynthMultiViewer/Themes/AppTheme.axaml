@@ -125,8 +125,12 @@
         <Setter Property="AllowAutoHide" Value="False" />
     </Style>
     <Style Selector="Button, ToggleButton">
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="10,0" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="CornerRadius" Value="3" />
     </Style>
     <Style Selector="StackPanel.start-tiles">
@@ -156,13 +160,15 @@
     </Style>
     <Style Selector="ComboBox">
         <Setter Property="MinHeight" Value="28" />
-        <Setter Property="Padding" Value="10,0,0,0" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="8,0,0,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="ComboBoxItem">
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="Height" Value="28" />
-        <Setter Property="Padding" Value="10,0,4,0" />
+        <Setter Property="Padding" Value="8,0,4,0" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="ListBox">
@@ -179,13 +185,32 @@
         <Setter Property="ClipToBounds" Value="True" />
         <Setter Property="AllowAutoHide" Value="False" />
     </Style>
+    <Style Selector="ListBoxItem">
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MaxHeight" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusAdorner">
+            <FocusAdornerTemplate>
+                <Border BorderThickness="2"
+                        BorderBrush="{DynamicResource SystemControlFocusVisualPrimaryBrush}"
+                        IsHitTestVisible="False" />
+            </FocusAdornerTemplate>
+        </Setter>
+    </Style>
     <Style Selector="cc|CompletionListBox ListBoxItem">
         <Setter Property="ClipToBounds" Value="True" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Height" Value="NaN" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="MaxHeight" Value="Infinity" />
         <Setter Property="Padding" Value="2,2,5,2" />
     </Style>
 
-    <Style Selector="ListBox.compact">
+    <Style Selector="ListBox.text-search">
         <Setter Property="AutoScrollToSelectedItem" Value="True" />
         <Setter Property="IsTextSearchEnabled" Value="False" />
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
@@ -198,26 +223,11 @@
             </FocusAdornerTemplate>
         </Setter>
     </Style>
-    <Style Selector="ListBox.compact ListBoxItem">
-        <Setter Property="MinHeight" Value="28" />
-        <Setter Property="MaxHeight" Value="28" />
-        <Setter Property="Height" Value="28" />
-        <Setter Property="Padding" Value="0" />
-        <Setter Property="Margin" Value="0" />
-        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-        <Setter Property="VerticalContentAlignment" Value="Stretch" />
-        <Setter Property="FocusAdorner">
-            <FocusAdornerTemplate>
-                <Border BorderThickness="2"
-                        BorderBrush="{DynamicResource SystemControlFocusVisualPrimaryBrush}"
-                        IsHitTestVisible="False" />
-            </FocusAdornerTemplate>
-        </Setter>
-    </Style>
     <Style Selector="TextBox">
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="Height" Value="28" />
         <Setter Property="Padding" Value="8,0,6,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
     <Style Selector="TextBox.search">
@@ -263,12 +273,18 @@
     <Style Selector="StackPanel.dialog-actions > Button">
         <Setter Property="MinWidth" Value="72" />
         <Setter Property="MinHeight" Value="28" />
-        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="Padding" Value="10,0" />
+    </Style>
+    <!-- The 28px button lock is for our dialogs. Message box buttons keep their own height, padding, and margin. -->
+    <Style Selector="Button.button, Button.buttons">
+        <Setter Property="Height" Value="NaN" />
+        <Setter Property="Padding" Value="{DynamicResource ButtonPadding}" />
     </Style>
     <Style Selector="NumericUpDown">
         <Setter Property="MinHeight" Value="28" />
         <Setter Property="Height" Value="28" />
         <Setter Property="Padding" Value="8,0,6,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="ShowButtonSpinner" Value="False" />
         <Setter Property="ClipToBounds" Value="False" />
@@ -277,9 +293,23 @@
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="ClipToBounds" Value="False" />
     </Style>
+    <Style Selector="NumericUpDown:pointerover /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource TextControlBorderBrushPointerOver}" />
+    </Style>
+    <Style Selector="NumericUpDown:focus-within /template/ ButtonSpinner#PART_Spinner">
+        <Setter Property="BorderBrush" Value="{DynamicResource TextControlBorderBrushFocused}" />
+        <Setter Property="BorderThickness" Value="{DynamicResource TextControlBorderThemeThicknessFocused}" />
+    </Style>
     <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox">
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Height" Value="NaN" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox:pointerover /template/ Border#PART_BorderElement,
+                     NumericUpDown /template/ TextBox#PART_TextBox:focus /template/ Border#PART_BorderElement">
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
     </Style>
     <Style Selector="edit|TextEditor">
         <Setter Property="FontFamily" Value="Consolas,Menlo,Monospace" />
@@ -290,6 +320,8 @@
         <Setter Property="ScrollViewer.AllowAutoHide" Value="False" />
     </Style>
     <Style Selector="StackPanel.toolbar > Button, StackPanel.toolbar > ToggleButton">
+        <Setter Property="Height" Value="NaN" />
+        <Setter Property="MinHeight" Value="0" />
         <Setter Property="Padding" Value="6" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />

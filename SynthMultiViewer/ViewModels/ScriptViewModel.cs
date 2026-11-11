@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Reactive.Linq;
 using Avalonia.Media;
 using HanumanInstitute.SynthMultiViewer.Models;
@@ -7,7 +8,7 @@ namespace HanumanInstitute.SynthMultiViewer.ViewModels;
 /// <summary>
 /// Describes a tab and its editable header.
 /// </summary>
-public interface IScriptViewModel : IWorkspaceViewModel
+public interface IScriptViewModel : IWorkspaceViewModel, INotifyPropertyChanged
 {
     /// <summary>
     /// Gets whether the tab can be renamed.
@@ -127,8 +128,10 @@ public partial class ScriptViewModel : WorkspaceViewModel, IScriptViewModel
     /// </summary>
     public RxCommandVoid BeginHeaderEdit => field ??= ReactiveCommand.Create(
         StartHeaderEdit,
-        this.WhenAnyValue(x => x.IsActive, x => x.IsEditingHeader)
-            .Select(state => state.Item1 && !state.Item2 && CanEditHeader));
+        this.WhenAnyValue(
+            x => x.IsActive,
+            x => x.IsEditingHeader,
+            (active, editing) => active && !editing && CanEditHeader));
 
     /// <inheritdoc />
     public RxCommandVoid HeaderEditDone => field ??= ReactiveCommand.Create(

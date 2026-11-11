@@ -1,0 +1,19 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HanumanInstitute.SynthMultiViewer.ViewModels"
+        x:Class="HanumanInstitute.SynthMultiViewer.Views.EncodeErrorView"
+        x:DataType="vm:EncodeErrorViewModel"
+        Title="{Binding DisplayName}" Width="640" Height="360"
+        MinWidth="400" MinHeight="240" WindowStartupLocation="CenterScreen">
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding Close}" />
+    </Window.KeyBindings>
+    <DockPanel Classes="dialog-content">
+        <StackPanel DockPanel.Dock="Bottom" Classes="dialog-actions">
+            <Button Content="Close" Command="{Binding Close}" />
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <SelectableTextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+        </ScrollViewer>
+    </DockPanel>
+</Window>

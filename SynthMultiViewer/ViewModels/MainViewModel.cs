@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using HanumanInstitute.SynthMultiViewer.Controls;
 using HanumanInstitute.ScriptAssist.Services;
 using HanumanInstitute.SynthMultiViewer.Helpers;
 using HanumanInstitute.SynthMultiViewer.Models;
@@ -37,6 +38,7 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     private readonly FunctionsExplorerPlacement _explorerPlacement = new();
     private readonly HashSet<IScriptViewModel> _closing = [];
     private bool _loaded;
+    private bool _aligningZoom;
 
     /// <summary>
     /// Creates the workspace with dialog and environment services.
@@ -71,15 +73,13 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
         RefreshRecents();
         this.WhenAnyValue(x => x.IsMultiThreaded)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(Threads)));
-
+        ZoomList.PropertyChanged += OnZoomListChanged;
         this.WhenAnyValue(x => x.Zoom)
             .Subscribe(value =>
             {
                 ZoomScaleToFit = value == 0.0;
-                if (value == 0.0)
-                {
-                    return;
-                }
+                AlignZoomList(value);
+                if (value == 0.0) { return; }
 
                 var coerced = value.Clamp(MinZoom, MaxZoom);
                 if (Math.Abs(coerced - value) > double.Epsilon)
@@ -134,10 +134,20 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     /// </summary>
     public double ZoomIncrement { get; } = 1.2;
     /// <summary>
-    /// Gets the zoom choices shown in the toolbar.
+    /// Gets the zoom choices, with scale-to-fit first.
+    /// The combo reflects <see cref="Zoom"/>. A typed factor that is not in the list stays on the text box.
     /// </summary>
-    public IReadOnlyList<string> ZoomList { get; } =
-        ["Scale to Fit", "20%", "50%", "70%", "100%", "150%", "200%", "400%"];
+    public ListItemCollectionView<double> ZoomList { get; } = new()
+    {
+        { 0, "Scale to Fit" },
+        { 0.2, "20%" },
+        { 0.5, "50%" },
+        { 0.7, "70%" },
+        { 1, "100%" },
+        { 1.5, "150%" },
+        { 2, "200%" },
+        { 4, "400%" }
+    };
 
     /// <summary>
     /// Gets or sets the active tab.
@@ -274,6 +284,16 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     public RxCommandVoid FunctionsExplorer =>
         field ??= ReactiveCommand.Create(FunctionsExplorerImpl, WhenEditorSelected);
     /// <summary>
+    /// Opens encode settings for the selected tab.
+    /// </summary>
+    public RxCommandVoid Encode =>
+        field ??= ReactiveCommand.CreateFromTask(EncodeAsync, WhenScriptSelected);
+    /// <summary>
+    /// Opens the benchmark dialog for the selected tab.
+    /// </summary>
+    public RxCommandVoid Benchmark =>
+        field ??= ReactiveCommand.CreateFromTask(BenchmarkAsync, WhenScriptSelected);
+    /// <summary>
     /// Moves the selected viewer by the supplied frame count.
     /// </summary>
     public ReactiveCommand<object?, RxVoid> Seek => field ??= ReactiveCommand.Create<object?>(SeekImpl, WhenViewerSelected);
@@ -346,6 +366,9 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
     private IObservable<bool> WhenEditorSelected =>
         this.WhenAnyValue(x => x.SelectedItem).Select(x => x is IEditorViewModel);
 
+    private IObservable<bool> WhenScriptSelected =>
+        this.WhenAnyValue(x => x.SelectedItem).Select(x => x is IEditorViewModel or IViewerViewModel);
+
     private IObservable<bool> WhenViewerSelected =>
         this.WhenAnyValue(x => x.SelectedItem).Select(x => x is IViewerViewModel);
 
@@ -407,6 +430,21 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
         }
 
         IsFunctionsExplorerOpen = false;
+    }
+
+    private async Task EncodeAsync()
+    {
+        var encode = _dialogService.CreateViewModel<EncodeViewModel>();
+        encode.UseWindowOwner(this);
+        encode.Bind(SelectedItem);
+        await _dialogService.ShowDialogAsync(this, encode);
+    }
+
+    private async Task BenchmarkAsync()
+    {
+        var benchmark = _dialogService.CreateViewModel<BenchmarkViewModel>();
+        benchmark.Bind(SelectedItem);
+        await _dialogService.ShowDialogAsync(this, benchmark);
     }
 
     private void NewImpl() => AddEditor(_defaultScripts.VapourSynth, ScriptKind.VapourSynth);
@@ -789,6 +827,44 @@ public partial class MainViewModel : WorkspaceViewModel, IViewLoaded, IViewClose
         }
 
         SelectedItem = item;
+    }
+
+    // Moves the combo to the row for this factor. A factor that is not listed clears the row and leaves the text.
+    private void AlignZoomList(double zoom)
+    {
+        if (_aligningZoom)
+        {
+            return;
+        }
+
+        var match = ZoomList.Source.FirstOrDefault(item => Math.Abs(item.Value - zoom) < 0.0001);
+        if (ReferenceEquals(ZoomList.CurrentItem, match))
+        {
+            return;
+        }
+
+        _aligningZoom = true;
+        ZoomList.CurrentItem = match;
+        _aligningZoom = false;
+    }
+
+    // A listed row writes its factor. No row means the text box holds a factor that is not listed.
+    private void OnZoomListChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_aligningZoom || e.PropertyName != nameof(ZoomList.CurrentItem) || ZoomList.CurrentItem == null)
+        {
+            return;
+        }
+
+        var zoom = ZoomList.CurrentItem.Value;
+        if (Math.Abs(Zoom - zoom) < 0.0001)
+        {
+            return;
+        }
+
+        _aligningZoom = true;
+        Zoom = zoom;
+        _aligningZoom = false;
     }
 
     private void ZoomInImpl()
