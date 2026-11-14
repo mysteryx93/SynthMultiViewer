@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>HanumanInstitute.AviSynthApi</RootNamespace>
+    <Description>Managed AviSynth+ script evaluation, video frames, interleaved audio samples, and native function discovery for .NET.</Description>
+    <Product>AviSynthApi</Product>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>true</IsPackable>
+    <PackageId>AviSynthApi</PackageId>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/mysteryx93/VapourSynthViewer.NET/tree/master/AviSynthApi/</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PackageTags>avisynth;avisynthplus;video;audio;interop</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>portable</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <Version>1.0</Version>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <AssemblyName>AviSynthApi</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="HanumanInstitute.Validators" />
+    <InternalsVisibleTo Include="AviSynthApi.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>

@@ -1,5 +1,5 @@
-using HanumanInstitute.ApiAviSynth;
-using HanumanInstitute.ApiVapourSynth;
+using HanumanInstitute.AviSynthApi;
+using HanumanInstitute.VapourSynthApi;
 using HanumanInstitute.SynthMultiViewer.Models;
 
 namespace HanumanInstitute.SynthMultiViewer.Services;

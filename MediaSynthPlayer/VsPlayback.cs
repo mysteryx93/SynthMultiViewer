@@ -1,6 +1,6 @@
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
-using HanumanInstitute.ApiVapourSynth;
+using HanumanInstitute.VapourSynthApi;
 
 namespace HanumanInstitute.MediaSynthUI;
 
@@ -285,8 +285,7 @@ internal sealed class VsPlayback : ISynthPlayback
             output = _output;
         }
 
-        // getFrameAsync's callback runs on a VapourSynth worker. A blocking getFrame
-        // there (including GetSourceFrameProperties) deadlocks the core's thread pool.
+        // Copy the borrowed event frame before the managed dispatcher releases it.
         var pixels = CopyRgb(e.Frame!);
         var index = e.Index;
         IReadOnlyList<FrameProperty> properties;

@@ -1,5 +1,5 @@
 using System.Buffers;
-using HanumanInstitute.ApiVapourSynth;
+using HanumanInstitute.VapourSynthApi;
 
 namespace HanumanInstitute.MediaSynthUI;
 

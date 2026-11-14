@@ -1,4 +1,4 @@
-using HanumanInstitute.ApiAviSynth;
+using HanumanInstitute.AviSynthApi;
 using HanumanInstitute.ScriptAssist.Services;
 
 namespace HanumanInstitute.SynthMultiViewer.Services;

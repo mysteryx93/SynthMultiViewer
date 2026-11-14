@@ -64,6 +64,8 @@ This repo also contains .NET API wrapper for [VapourSynth](ApiVapourSynth/) and 
 
 [ScriptAssist](ScriptAssist/README.md) provides completion, call insight, and hover for VapourSynth and AviSynth, with AvaloniaEdit and headless APIs. It analyzes text and supplied catalogs without executing scripts or requiring Python.
 
+[ApiAviSynth](ApiAviSynth/README.md) and [ApiVapourSynth](ApiVapourSynth/README.md) provide independent .NET 10 libraries for native script evaluation, video frames, audio samples, and function discovery. Both build as NuGet packages; their READMEs cover native requirements, sample formats, and ownership.
+
 ### License
 
 [MIT License](LICENSE.md)

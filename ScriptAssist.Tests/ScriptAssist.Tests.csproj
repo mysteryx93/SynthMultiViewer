@@ -13,7 +13,7 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <ProjectReference Include="../ScriptAssist/ScriptAssist.csproj" />
-    <ProjectReference Include="../ApiVapourSynth/ApiVapourSynth.csproj" />
-    <ProjectReference Include="../ApiAviSynth/ApiAviSynth.csproj" />
+    <ProjectReference Include="..\VapourSynthApi\VapourSynthApi.csproj" />
+    <ProjectReference Include="..\AviSynthApi\AviSynthApi.csproj" />
   </ItemGroup>
 </Project>

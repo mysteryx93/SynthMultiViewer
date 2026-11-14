@@ -1,7 +1,10 @@
 VapourSynth Multi-Viewer Change Log
 
+v1.5.1 (2026-11-14)
+- Reviewed AviSynthApi and VapourSynthApi implementations (to publish as stand-alone packages)
+
 v1.5 (2026-10-07)
-- Remove custom paths so path resolution matches ffmpeg, avs2yuv and vspipe
+- Added Encode and Benchmark
 
 v1.4 (2026-09-21)
 - Greatly enhanced text editor with ScriptAssist: autocomplete, method overloads and hover hints

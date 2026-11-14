@@ -4,10 +4,12 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="ApiAviSynth/ApiAviSynth.csproj" />
-  <Project Path="ApiAviSynth.Tests/ApiAviSynth.Tests.csproj" />
-  <Project Path="ApiVapourSynth/ApiVapourSynth.csproj" />
-  <Project Path="ApiVapourSynth.Tests/ApiVapourSynth.Tests.csproj" />
+  <Folder Name="/SynthApi/">
+    <Project Path="AviSynthApi.Tests\AviSynthApi.Tests.csproj" />
+    <Project Path="AviSynthApi\AviSynthApi.csproj" />
+    <Project Path="VapourSynthApi.Tests\VapourSynthApi.Tests.csproj" />
+    <Project Path="VapourSynthApi\VapourSynthApi.csproj" />
+  </Folder>
   <Project Path="MediaSynthPlayer/MediaSynthPlayer.csproj" />
   <Project Path="SynthMultiViewer.Tests/SynthMultiViewer.Tests.csproj" />
   <Project Path="ScriptAssist/ScriptAssist.csproj" />

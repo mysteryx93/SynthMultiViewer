@@ -3,8 +3,8 @@ using Avalonia;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using HanumanInstitute.ApiAviSynth;
-using HanumanInstitute.ApiVapourSynth;
+using HanumanInstitute.AviSynthApi;
+using HanumanInstitute.VapourSynthApi;
 using HanumanInstitute.SynthMultiViewer.Views;
 
 namespace HanumanInstitute.SynthMultiViewer.Tests;

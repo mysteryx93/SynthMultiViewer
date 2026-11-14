@@ -1,4 +1,4 @@
-using HanumanInstitute.ApiVapourSynth;
+using HanumanInstitute.VapourSynthApi;
 using HanumanInstitute.ScriptAssist.VapourSynth;
 
 namespace HanumanInstitute.SynthMultiViewer.Services;

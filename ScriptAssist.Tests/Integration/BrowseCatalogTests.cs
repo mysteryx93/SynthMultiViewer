@@ -1,5 +1,5 @@
-using HanumanInstitute.ApiAviSynth;
-using HanumanInstitute.ApiVapourSynth;
+using HanumanInstitute.AviSynthApi;
+using HanumanInstitute.VapourSynthApi;
 using HanumanInstitute.ScriptAssist.AviSynth;
 using HanumanInstitute.ScriptAssist.Services;
 using HanumanInstitute.ScriptAssist.VapourSynth;

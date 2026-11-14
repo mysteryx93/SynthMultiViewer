@@ -1,6 +1,6 @@
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
-using HanumanInstitute.ApiAviSynth;
+using HanumanInstitute.AviSynthApi;
 
 namespace HanumanInstitute.MediaSynthUI;
 

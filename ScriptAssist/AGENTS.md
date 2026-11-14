@@ -4,7 +4,7 @@ Consumer setup and API examples: [README.md](README.md). These notes describe im
 
 ## Boundaries
 
-- Keep one assembly. Never reference `ApiVapourSynth`, `ApiAviSynth`, or the app; never load a native core or execute scripts.
+- Keep one assembly. Never reference `VapourSynthApi`, `AviSynthApi`, or the app; never load a native core or execute scripts.
 - Keep language behavior here, including type inference, `clip.` completion, `Symbol` mapping from dump DTOs, grouping, and browse. The host implements `IVapourSynthNativeCatalog` / `IAviSynthNativeCatalog`, `IScriptDirectory`, and `IIncludeSource`; it does not assemble language rules or map plugins in the app.
 - Disk I/O is `IFileSystemService` in `Services/` (System.IO.Abstractions plus a few helpers). That folder is separable. Call `File` / `Directory` / `Path` only through that service when the member exists on `IFileSystem` / `IPath`. `ScriptFiles`, `ScriptPackages`, and include-path math take `IFileSystemService` / `IPath`. Tests use a Fake or Moq, not temp files. `System.IO` leftovers (`IOException`, `FileMode`, `SearchOption`) stay fully qualified. Do not remove `System.IO` from implicit usings.
 - Collaborators are native dumps, plugin-folder disk, includes, and `IAssistSession`. Do not take `Func` / `delegate` catalogs, includes, paths, or enablement. Do not add `ITextFile`, a profile-list factory constructor, `IAssistGate`, or settable `AllowRequests` for tests. The factory takes natives and builds `VapourSynthSymbolSource` / `AviSynthSymbolSource`.

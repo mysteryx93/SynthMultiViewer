@@ -1,6 +1,6 @@
 using System.Diagnostics;
-using HanumanInstitute.ApiAviSynth;
-using HanumanInstitute.ApiVapourSynth;
+using HanumanInstitute.AviSynthApi;
+using HanumanInstitute.VapourSynthApi;
 
 namespace HanumanInstitute.SynthMultiViewer.Services;
 

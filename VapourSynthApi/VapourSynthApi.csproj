@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>HanumanInstitute.VapourSynthApi</RootNamespace>
+    <Description>Managed VapourSynth 4 script evaluation, video and planar audio frames, ordered frame events, and native plugin discovery for .NET.</Description>
+    <Product>VapourSynthApi</Product>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>true</IsPackable>
+    <PackageId>VapourSynthApi</PackageId>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/mysteryx93/VapourSynthViewer.NET/tree/master/VapourSynthApi/</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <PackageTags>vapoursynth;video;audio;interop</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>portable</DebugType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>1.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="HanumanInstitute.Validators" />
+    <InternalsVisibleTo Include="VapourSynthApi.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+</Project>
