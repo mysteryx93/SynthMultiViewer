@@ -14,10 +14,6 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PackageTags>vapoursynth;video;audio;interop</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>portable</DebugType>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <EnablePackageValidation>true</EnablePackageValidation>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Version>1.0</Version>

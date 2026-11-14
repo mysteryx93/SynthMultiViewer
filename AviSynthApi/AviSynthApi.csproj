@@ -14,10 +14,6 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <PackageTags>avisynth;avisynthplus;video;audio;interop</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>portable</DebugType>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <EnablePackageValidation>true</EnablePackageValidation>
     <Version>1.0</Version>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
