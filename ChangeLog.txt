@@ -3,7 +3,7 @@ VapourSynth Multi-Viewer Change Log
 v1.5.1 (2026-11-14)
 - Reviewed AviSynthApi and VapourSynthApi implementations (to publish as stand-alone packages)
 
-v1.5 (2026-10-07)
+v1.5 (2026-11-10)
 - Added Encode and Benchmark
 
 v1.4 (2026-09-21)
