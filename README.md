@@ -72,7 +72,7 @@ This repo also contains .NET API wrapper for [VapourSynth](ApiVapourSynth/) and 
 
 ### Author
 
-[Etienne Charland](https://www.hanumaninstitute.com) — Soul Architect | Reality Engineering | Coherence programming
+[Etienne Charland](https://www.hanumaninstitute.com) — Coherence Programming | Reality Engineering | Soul Architect
 
 ### TODO
 
